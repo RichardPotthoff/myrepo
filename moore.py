@@ -1,5 +1,11 @@
 from pylab import *
 import matplotlib
+def show_plot():
+  axis('off')
+  axes().set_aspect('equal', 'datalim')	
+  subplots_adjust(left=0, right=1, top=1, bottom=0)
+  show()
+  close()
 def  hilbert(n):
   a=1+1j
   b=conj(a)
@@ -19,15 +25,11 @@ z1f=fft(zu)
 nf=len(z1f)/8
 z1f[nf:len(z1f)-1-nf]=0
 z1i=ifft(z1f)
-matplotlib.pyplot.a
 plot(z.real,z.imag)
-show()
-close()
+show_plot()
 plot(z1i.real,z1i.imag)
-show()
-close()
-plot(z1i[7:72].real,z1i[7:72].imag)
-plot(z[:9].real,z[:9].imag)
-show()
-close()
+show_plot()
+plot(z1i[7:128].real,z1i[7:128].imag)
+plot(z[:16].real,z[:16].imag)
+show_plot()
 
