@@ -31,5 +31,13 @@ plot(z1i.real,z1i.imag)
 show_plot()
 plot(z1i[7:128].real,z1i[7:128].imag)
 plot(z[:16].real,z[:16].imag)
+#show_plot()
+zj=z1i
+for i in range(180):
+  zj=0.5*(concatenate([zj[1:],zj[:1]])+concatenate([zj[-1:],zj[:-1]]))
+plot(zj[7:128].real,zj[7:128].imag)
 show_plot()
-
+plot(zj.real,zj.imag)
+show_plot()
+print sum(abs(concatenate([zj[1:],zj[:1]])-zj))
+print sum(abs(concatenate([z1i[1:],z1i[:1]])-z1i))

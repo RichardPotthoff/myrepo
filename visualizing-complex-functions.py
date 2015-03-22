@@ -21,6 +21,7 @@ for k, s in zip(range(4),sat):
     plt.xlabel("$H$")
     plt.ylabel("$V$")
     plt.title(svals[k])
+plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
 plt.tight_layout(1)    
 plt.show()
 plt.close()
