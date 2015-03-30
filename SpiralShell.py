@@ -1,67 +1,16 @@
-# Function Plotter
-import canvas
-import console
+from math import acos
+from pylab import *
 import operator
-from math import sin, cos, pi,sqrt,atan2,acos,exp,log
+def show_plot():
+  axis('off')
+  axes().set_aspect('equal', 'datalim')	
+  subplots_adjust(left=0, right=1, top=1, bottom=0)
+  show()
+  close()
 class segment(object):
     def __init__(self,l,ang):
         self.l=l
         self.ang=ang
-         
-def draw_grid(min_x, max_x, min_y, max_y):
-    w, h = canvas.get_size()
-    scale_x = w / (max_x - min_x)
-    scale_y = h / (max_y - min_y)
-    scale_x = min(scale_x,scale_y)
-    scale_y=scale_x
-    min_x, max_x = round(min_x), round(max_x)
-    min_y, max_y = round(min_y), round(max_y)
-    canvas.begin_updates()
-    canvas.set_line_width(1)
-    canvas.set_stroke_color(0.7, 0.7, 0.7)
-    #Draw vertical grid lines:
-    x = min_x
-    while x <= max_x:
-        if x != 0:
-            draw_x = round(w / 2 + x * scale_x) + 0.5
-            canvas.draw_line(draw_x, 0, draw_x, h)
-        x += 0.5
-    #Draw horizontal grid lines:
-    y = min_y
-    while y <= max_y:
-        if y != 0:
-            draw_y = round(h/2 + y * scale_y) + 0.5
-            canvas.draw_line(0, draw_y, w, draw_y)
-        y += 0.5
-    #Draw x and y axis:
-    canvas.set_stroke_color(0, 0, 0)
-    canvas.draw_line(0, h/2, w, h/2)
-    canvas.draw_line(w/2, 0, w/2, h)
-    canvas.end_updates()
- 
-def plot_function(t_, color, min_x,max_x,min_y,max_y):
-    #Calculate scale, set line width and color:
-    w, h = canvas.get_size()
-    scale_x = w / (max_x - min_x)
-    scale_y = h / (max_y - min_y)
-    scale_x = min(scale_x,scale_y)
-    scale_y=scale_x
-    origin_x, origin_y = -scale_x*min_x,-scale_y*min_y
-    canvas.set_stroke_color(*color)
-    canvas.set_line_width(2)
-    #Draw the graph line:
-    x = t_[0][0]
-    y = t_[0][1]
-    canvas.move_to(origin_x + scale_x * x, 
-                   origin_y + scale_y * y)
-    for p in t_[1:]:
-        x=p[0]
-        y=p[1]
-        draw_x = origin_x + scale_x * x
-        draw_y = origin_y + scale_y * y
-        canvas.add_line(*(draw_x, draw_y))
-    canvas.set_fill_color(*color)
-    canvas.draw_path()
 def sumangles(a,b):
     return rotate(a,b)
 def rotate(v,a):
@@ -75,13 +24,6 @@ def cossin(x):
     return (cos(x),sin(x))
 def angle(cs):
     return atan2(cs[1],cs[0])
-#Set     up the canvas size and clear any text output:
-console.clear()
-canvas.set_size(688, 688)
-#Draw the grid:v
-area = (-10, 10, -10, 10)
-draw_grid(*area)
-#Draw 4 different graphs (sin(x), cos(x), x^2, x^3):
 n=50
 pi2=pi*2
 t_=map(lambda i:float(i)/n,range(n+1))
@@ -244,15 +186,6 @@ def fill(minx,maxx,n):
 	if n>3:
 	  result=[result[1]]+[result[0]]+result[n-2:]+result[2:n-2]
 	return result	
-def plot_box(center,size,color,area):
-	xmin,xmax=center[0]-size[0]/2.0,center[0]+size[0]/2.0
-	ymin,ymax=center[1]-size[1]/2.0,center[1]+size[1]/2.0
-	plot_function(((xmin,ymin),(xmax,ymin),(xmax,ymax),(xmin,ymax),(xmin,ymin)),color,*area)
-def plot_brick(center,size,color,area):
-	xmin,xmax=center[0]-size[0]/2.0,center[0]+size[0]/2.0
-	ymin,ymax=center[1]-size[1],center[1]
-	d=size[0]/4.0
-	plot_function(((xmin-size[1]+d,ymin+d),(xmax-size[1]-d,ymin-d),(xmax,ymax),(xmin,ymax),(xmin-size[1]+d,ymin+d)),color,*area)
 def skirt(polyline,r=3,d=3):
 	xmin,xmax,ymin,ymax=minmaxxy(polyline)
 	dx,dy=xmax-xmin,ymax-ymin
@@ -427,7 +360,7 @@ M82 ; use absolute distances for extrusion
 "bed_temperature":first_layer_bed_temperature,
 "hotend_temperature":first_layer_hotend_temperature        
  }
-
+n_flange=20
 filelocation="cookie.txt"
 z=0.0
 z+=layer_height
@@ -444,7 +377,7 @@ for i in range(-1,2,1):
 	            extrusion_width=0.75,layer_height=layer_height,z=z)
   lstart+=dlstart
 speed_ratio=first_layer_speed_ratio
-for layer in crosssection:
+for layer in crosssection[:n_flange]:
   totalextrusionlength=len(layer)*pathLength(segments)
   speed=min(totalextrusionlength/min_layer_time,perimeter_speed)*speed_ratio
   for o,w in layer: 
@@ -454,16 +387,33 @@ for layer in crosssection:
     lstart+=dlstart
   speed_ratio=1.0
   z+=layer_height
+for layer in crosssection[n_flange:]:
+  totalextrusionlength=len(layer)*pathLength(segments)
+  speed=min(totalextrusionlength/min_layer_time,perimeter_speed)*speed_ratio
+  for o,w in layer: 
+    extrudePath(output,segments,speed=speed,\
+	            p0=p0,a=a,o=o,lstart=lstart,
+	            extrusion_width=w,layer_height=layer_height,z=z)
+    lstart+=dlstart
+  speed_ratio=1.0
+  z+=layer_height
+
 output.write("G1 Z%(Z)0.3f\n"%{"Z":z})
 output.write("G28 X0\n")
 	
 output.close()
-def plot_layers(crosssection):
-	z=0.0
-	dz=0.2
+def plot_box(x,z,w,h,style="r"):
+			l=x-0.5*w
+			r=x+0.5*w
+			b=z-h
+			t=z
+			plot([r,l,l,r,r],[t,t,b,b,t],style)
+
+def plot_layers(crosssection,x0=0,z0=0.0,dz=0.2,style="r"):
+	z=z0+dz
 	for layer in crosssection:
 		for x,w in layer:
-			plot_box((x,z),(w,dz),(1,0,0),(-3,3,-0.3,14.4))
+			plot_box(x0+x,z,w,dz,style)
 		z+=dz
 def fz(n,b1=50.0/8,w0=0.2,w1=0.1):
 	a=w0
@@ -484,9 +434,24 @@ def fminExtrusionWidth(nozzleDiameter,layerHeight):
 	minExtrusionWidth=nozzleDiameter+layerHeight*pi/4.0#Nozzle width + area of two semicircles of layer height diameter to either side of nozzle
 	return(minExtrusionWidth)
 
-zoom=0.8
-area=(0,40*zoom,0,40*zoom)
-plot_function(t2,(0,0,1), *(0,200,0,200))
-plot_layers(crosssection)	
+plot([p[0] for p in t2],[p[1] for p in t2])
+show_plot()
+dz=0.2
+h_blade=(len(crosssection)-n_flange)*dz
+w_blade_top=crosssection[-1][0][1]
+w_blade_bottom=crosssection[n_flange][0][1]
+n_blade=int(h_blade/dz+1.5)
+plot_layers(crosssection[:n_flange],x0=-5.5,z0=0,dz=dz,style="r")	
+plot_layers(crosssection[n_flange:],x0=-5.5,z0=n_flange*dz,dz=dz,style="b")
+for i in range(4):
+  plot_layers(crosssection[:n_flange],x0=5.5*i,z0=0,dz=dz,style="r")	
+  for j in range(n_blade):
+  	z=(j+0.25*i)*dz
+  	h_layer=min(z,dz)if z<h_blade else max(dz-(z-h_blade),0.0)
+  	if dz-(z-h_blade)<0:print "negative layer height at z=%f"%(z)
+  	z=min(z,h_blade)
+  	w_layer=w_blade_bottom+(w_blade_top-w_blade_bottom)*(z-0.5*h_layer)/h_blade
+  	plot_box(5.5*i,z+n_flange*dz,w_layer,h_layer,"g")
+show_plot()
 
 
