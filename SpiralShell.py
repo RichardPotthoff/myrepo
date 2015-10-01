@@ -1,6 +1,7 @@
 from math import acos
 from pylab import *
 import operator
+cookiecutterindex=2
 def show_plot():
   axis('off')
   axes().set_aspect('equal', 'datalim')	
@@ -241,7 +242,7 @@ def normalizePath(path,p0,area):
 	dy=ymax-ymin
 	return vectorSum(p0,(-(xmin+dx/2.0),-(ymin+dy/2.0))),rotang,path     
 	        
-p0,a,segments=normalizePath(esegments,p0=(100,100),area=2000.0)
+p0,a,segments=normalizePath((tsegments,dsegments,esegments,ssegments,hsegments)[cookiecutterindex],p0=(100,100),area=2000.0)
 t2=[]#segmentsToPolyline(segments,p=p0,a=a)
 for o in range(1):
   t2+=segmentsToPolyline(segments,p=p0,a=a,o=-o,lstart=10*o-20)
