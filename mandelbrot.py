@@ -91,15 +91,20 @@ if __name__=='__main__':
     n=600
     x0=0.001643721971153
     y0=0.822467633298876
+#    x0=-0.74688-1e-4-1.25e-6+1.75e-8-0.075e-10
+#    y0=0.1+0.3e-8-0.1e-10
 #    x0=-0.75
+#    x0=-2.0
 #    y0=0.0
     for zoom in(1.0,1e2,1e4,1e6,1e8,5e10):
       start = time.time()
       dx=1.25/zoom
       dy=1.25/zoom
       I = mandel(400, 400,n,x0-dx, x0+dx, y0-dy,y0+dy)
-      print 'Time taken:', time.time()-start
+      print 'Time taken:', time.time()-start, "zoom=",zoom
       I[I==0] = n+1
+      I[198:201,198:201]=3*n/4+1
+      I[199,199]=n+1
       img = imshow(I.T, origin='lower left')
 #      img.write_png('mandel.png', noscale=True)
       show_plot()
