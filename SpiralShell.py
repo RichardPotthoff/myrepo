@@ -1,7 +1,12 @@
-from math import acos
-from pylab import *
+import os
+import socket
+from math import acos,pi,sin,cos,sqrt
+on_ipad=socket.gethostname()=="iPad"
+if on_ipad:
+  from pylab import *
 import operator
-cookiecutterindex=2
+cookiecutterindex=5
+crosssectionindex=1
 def show_plot():
   axis('off')
   axes().set_aspect('equal', 'datalim')	
@@ -72,6 +77,7 @@ esegments=[segment(5,125.0/180*pi),
           segment(13.297,-25.0/180*pi),
           segment(0.4,10.0/180*pi),
           ]
+csegments=[segment(1.0,2*pi),]
  
    
 ssegments=[]
@@ -242,7 +248,7 @@ def normalizePath(path,p0,area):
 	dy=ymax-ymin
 	return vectorSum(p0,(-(xmin+dx/2.0),-(ymin+dy/2.0))),rotang,path     
 	        
-p0,a,segments=normalizePath((tsegments,dsegments,esegments,ssegments,hsegments)[cookiecutterindex],p0=(100,100),area=2000.0)
+p0,a,segments=normalizePath((tsegments,dsegments,esegments,ssegments,hsegments,csegments)[cookiecutterindex],p0=(100,100),area=2000.0)
 t2=[]#segmentsToPolyline(segments,p=p0,a=a)
 for o in range(1):
   t2+=segmentsToPolyline(segments,p=p0,a=a,o=-o,lstart=10*o-20)
@@ -251,7 +257,7 @@ t2=segmentsToPolyline(skirtsegments,p=pskirt0,o=0,lstart=-30)+t2
 area=minmaxxy(t2)
 #print t2[-1],area
 
-crosssection= [fill(-w2,w2,n) for w2,n in ((3.6/2,4),(4.0/2,5),(4.4/2,6),(4.6/2,5))]+ \
+crosssection1= [fill(-w2,w2,n) for w2,n in ((3.6/2,4),(4.0/2,5),(4.4/2,6),(4.6/2,5))]+ \
       [((0.0,cw),(-w2+ww/2,ww),(w2-ww/2,ww)) for w2,ww,cw in[ \
         (4.8/2,1.0,1.0),\
         (5.0/2,1.0,0.8),\
@@ -265,7 +271,25 @@ crosssection= [fill(-w2,w2,n) for w2,n in ((3.6/2,4),(4.0/2,5),(4.4/2,6),(4.6/2,
         ]+\
       [fill(-w2,w2,n) for w2,n in ((2.0/2,2),(1.6/2,3),(1.2/2,2))]+\
       [[(0.0,1.0-0.5*i/50.0)]for i in range(50+1)]
- 
+      
+crosssection2= [fill(-2.0,-0.2,2)]+\
+      [fill(-w2,0,n) for w2,n in ((4.4/2,3),(4.6/2,4))]+ \
+      [((-cw/2,cw),(-w2+ww/2,ww)) for w2,ww,cw in[ \
+        (4.8/2,1.0,1.0),\
+        (5.0/2,1.0,0.8),\
+        (5.0/2,0.9,0.6)]+\
+        [(5.0/2,0.9,0.5)]*2+[\
+        (4.8/2,0.9,0.5),\
+        (4.6/2,0.9,0.5),\
+        (4.4/2,1.0,0.5),\
+        (2.0,1.0,0.7)]\
+        ]+\
+        [fill(-1.8,0,2),\
+         fill(-1.6,0,3),\
+        fill(-1.4,0,2),\
+        fill(-1.2,0,2)]+\
+      [[(-(1.0-0.5*i/50.0)/2.0,1.0-0.5*i/50.0)]for i in range(50+1)]
+crosssection=(crosssection1,crosssection2)[crosssectionindex]
 #for layer in crosssection:print layer
 #print "forward",pathArea(segments)
 #print "mirrored",pathArea(mirrorPath(esegments))
@@ -361,8 +385,8 @@ M82 ; use absolute distances for extrusion
 "bed_temperature":first_layer_bed_temperature,
 "hotend_temperature":first_layer_hotend_temperature        
  }
-n_flange=20
-filelocation="cookie.txt"
+n_flange=(20,16)[crosssectionindex]
+filelocation="/dev/null" if on_ipad else "/home/pi/.octoprint/uploads/spiral_duck.gcode"
 z=0.0
 z+=layer_height
 output=open(filelocation,"w")
@@ -434,25 +458,25 @@ def fn(z=50.0/8,b1=None,w0=0.2,w1=0.1):
 def fminExtrusionWidth(nozzleDiameter,layerHeight):
 	minExtrusionWidth=nozzleDiameter+layerHeight*pi/4.0#Nozzle width + area of two semicircles of layer height diameter to either side of nozzle
 	return(minExtrusionWidth)
-
-plot([p[0] for p in t2],[p[1] for p in t2])
-show_plot()
-dz=0.2
-h_blade=(len(crosssection)-n_flange)*dz
-w_blade_top=crosssection[-1][0][1]
-w_blade_bottom=crosssection[n_flange][0][1]
-n_blade=int(h_blade/dz+1.5)
-plot_layers(crosssection[:n_flange],x0=-5.5,z0=0,dz=dz,style="r")	
-plot_layers(crosssection[n_flange:],x0=-5.5,z0=n_flange*dz,dz=dz,style="b")
-for i in range(4):
-  plot_layers(crosssection[:n_flange],x0=5.5*i,z0=0,dz=dz,style="r")	
-  for j in range(n_blade):
-  	z=(j+0.25*i)*dz
-  	h_layer=min(z,dz)if z<h_blade else max(dz-(z-h_blade),0.0)
-  	if dz-(z-h_blade)<0:print "negative layer height at z=%f"%(z)
-  	z=min(z,h_blade)
-  	w_layer=w_blade_bottom+(w_blade_top-w_blade_bottom)*(z-0.5*h_layer)/h_blade
-  	plot_box(5.5*i,z+n_flange*dz,w_layer,h_layer,"g")
-show_plot()
-
-
+def  plot_():
+	plot([p[0] for p in t2],[p[1] for p in t2])
+	show_plot()
+	dz=0.2
+	h_blade=(len(crosssection)-n_flange)*dz
+	w_blade_top=crosssection[-1][0][1]
+	w_blade_bottom=crosssection[n_flange][0][1]
+	n_blade=int(h_blade/dz+1.5)
+	plot_layers(crosssection[:n_flange],x0=-5.5,z0=0,dz=dz,style="r")	
+	plot_layers(crosssection[n_flange:],x0=-5.5,z0=n_flange*dz,dz=dz,style="b")
+	for i in range(4):
+	  plot_layers(crosssection[:n_flange],x0=5.5*i,z0=0,dz=dz,style="r")	
+	  for j in range(n_blade):
+	  	z=(j+0.25*i)*dz
+	  	h_layer=min(z,dz)if z<h_blade else max(dz-(z-h_blade),0.0)
+	  	if dz-(z-h_blade)<0:print "negative layer height at z=%f"%(z)
+	  	z=min(z,h_blade)
+	  	w_layer=w_blade_bottom+(w_blade_top-w_blade_bottom)*(z-0.5*h_layer)/h_blade
+	  	plot_box(5.5*i-0.5*(w_layer),z+n_flange*dz,w_layer,h_layer,"g")
+	show_plot()
+if on_ipad:
+	plot_()

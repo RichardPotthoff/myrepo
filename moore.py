@@ -1,3 +1,4 @@
+#!/usr/bin/env python2
 from pylab import *
 import matplotlib
 def show_plot():
