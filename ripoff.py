@@ -1,3 +1,4 @@
+#!/bin/env python3
 #----------------------------------------------------------------------
 # Copyright (c) 2012, Guy Carver
 # All rights reserved.
@@ -34,6 +35,7 @@
 from __future__ import absolute_import
 from time import clock
 from scene import *
+from my_scene_types import Rect,Color,Point
 from sound import *
 from threading import Thread, Event
 from math import sin, cos, pi, sqrt, acos, hypot, modf
@@ -191,10 +193,11 @@ def rotpoint(a, p):
 
 def clippoint(pnt, bound):
 	###Clip pnt in place to given bound.
-	l = bound.min_x
-	r = bound.max_x
-	t = bound.max_y
-	b = bound.min_y
+	bound=Rect(*bound)
+	l = bound.left()
+	r = bound.right()
+	t = bound.top()
+	b = bound.bottom()
 	pnt.x = max(l, min(r, pnt.x))
 	pnt.y = max(b, min(t, pnt.y))
 
@@ -206,7 +209,7 @@ class mob(object):
 		self.pos = Point(*pos)
 		self.filter = 0 #Bullet ID.
 		self.scale = g_scale #Scale of the mesh.
-		self.color = Color(.4, .8, 1.0,1.0) #Color of the mesh.
+		self.color = Color(.4, .8, 1.0) #Color of the mesh.
 		self.mesh = mesh
 		self.points = [Point(*p) for p in mesh[0]] #Make copy of points for transform.
 		self.angle = 0
@@ -271,7 +274,7 @@ class explosion(object):
 		c = mob.color
 		self.pos = Point(*mob.pos)
 		self.alpha = 1
-		self.color = Color(c.r, c.g, c.b, 1.0)
+		self.color = Color(c.r, c.g, c.b)
 		self.angle = mob.angle
 		self.blast = 4 #Stroke weight of blast circle.
 		numsegs = len(mob.mesh[1])
@@ -336,7 +339,7 @@ class crate(mob):
 	###Mob rebresenting a crate the robbers will attempt to steal.
 	def __init__(self, pos, scn):
 		mob.__init__(self, pos, scn, cratemesh)
-		self.color = Color(0.80, 0.80, 0.20,1.0)
+		self.color = Color(0.80, 0.80, 0.20)
 		self.reset()
 
 	def reset(self):
@@ -360,7 +363,7 @@ class bullet(object):
 		self.owner = owner #Owner of this bullet.
 		self.pos = Point(0,0)
 		self.vel = Point(0,0)
-		self.color = Color(1.0, 0.7, 0.7,1.0)
+		self.color = Color(1.0, 0.7, 0.7)
 		self.life = 0 #Current life of the bullet.
 		self.speed = bulletspeed
 		self.lifespan = 1 #Maximum life span of bullet in seconds.
@@ -660,7 +663,7 @@ class killer(aimachine):
 	###Hunter Killer AI machine.
 	def __init__(self, scn):
 		aimachine.__init__(self, scn, killermesh, 2)
-		self.color = Color(1.00, 0.00, 1.00,1.00)
+		self.color = Color(1.00, 0.00, 1.00)
 		self.shoot = sounds[2]
 		self.downtime = killerdowntime
 		self.state = self.down
@@ -838,6 +841,7 @@ class MyScene(Scene):
 		global screenrad	
 		# This will be called before the first frame is drawn.
 #		print(stroke.__module__,line.__module__)
+#		print(type(self.bounds).__module__)
 		pos = self.bounds.center()
 		w = self.size.w
 		h = self.size.h
@@ -849,14 +853,14 @@ class MyScene(Scene):
 		self.pl = []
 		plr = player(pos, self, 1.0) #Create player 1.
 		self.pl.append(plr)
-		plr.color = Color(1.00, 0.50, 0.00,1.00)
+		plr.color = Color(1.00, 0.50, 0.00)
 		plr.moverect = Rect(w - w3, 0, w3, w3) #Set movement button rectangle.
 		plr.movepos = plr.moverect.center()
 		plr.shootrect = Rect(w - w6, w3 * 2.25, w6, w3) #Set fire button rectangle.
 		pos.x = 0
 		plr = player(pos, self, -1.0) #Create player 2.
 		self.pl.append(plr)
-		plr.color = Color(0.40, 1.00, 0.40,1.00)
+		plr.color = Color(0.40, 1.00, 0.40)
 		plr.shoot = sounds[1] #Change fire sound for player 2.
 		plr.shootv = 0.3 #Set lower volume.
 		plr.moverect = Rect(0, h - w3, w3, w3) #Set movement button rectangle.
@@ -1039,7 +1043,7 @@ class MyScene(Scene):
 		c = self.bounds.center()
 		s = self.scoretxt[1]
 		image(self.scoretxt[0], c.x - (s.w / 2), self.size.h - s.h, *s)
-		clr = Color(1,1,0,1.0) if self.state == self.paused1 else Color(0.80, 0.40, 1.00,1.00)
+		clr = Color(1,1,0) if self.state == self.paused1 else Color(0.80, 0.40, 1.00)
 		if debug: #In debug draw timing text.
 			tmg = int((self.t1 - self.t0) * 1000.0)
 			text(str(tmg), x=20, y=20, alignment=9)
@@ -1096,4 +1100,4 @@ class MyScene(Scene):
 				return
 		self.checkpause(touch.location) #Check for pause button press.
 
-run(MyScene(), LANDSCAPE,show_fps=True)
+run(MyScene(), LANDSCAPE)
