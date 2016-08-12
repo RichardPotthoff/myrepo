@@ -148,8 +148,8 @@ def segvcircle(p1, p2, circle):
 		c.x += segvn.x * sl
 		c.y += segvn.y * sl
 	#Return true if distnce from this point to circle is < radius of circle.
-	return (hypot(c.x-circle.x,c.y-circle.y) < circle.z)
-	
+	return (c.distance(circle) < circle.z)
+
 def addangle(a1, a2):
 	###return a1 + a2 making sure the result is within 0-2pi.
 	a1 += a2
@@ -209,7 +209,7 @@ class mob(object):
 		self.pos = Point(*pos)
 		self.filter = 0 #Bullet ID.
 		self.scale = g_scale #Scale of the mesh.
-		self.color = Color(.4, .8, 1.0) #Color of the mesh.
+		self.color = Color(.4, .8, 1) #Color of the mesh.
 		self.mesh = mesh
 		self.points = [Point(*p) for p in mesh[0]] #Make copy of points for transform.
 		self.angle = 0
@@ -255,9 +255,6 @@ class mob(object):
 		###If on draw the mob.
 		if self.on:
 			stroke(*self.color)
-#			tint(*self.color)
-#			fill(*self.color)
-#			print (*self.color,self.__class__.__name__)
 			stroke_weight(1)
 			if self.dotrans: self.transformpoints()
 			for p0, p1 in self.mesh[1]:	#Draw each segment.
@@ -274,7 +271,7 @@ class explosion(object):
 		c = mob.color
 		self.pos = Point(*mob.pos)
 		self.alpha = 1
-		self.color = Color(c.r, c.g, c.b)
+		self.color = Color(c.r, c.g, c.b, 1)
 		self.angle = mob.angle
 		self.blast = 4 #Stroke weight of blast circle.
 		numsegs = len(mob.mesh[1])
@@ -363,7 +360,7 @@ class bullet(object):
 		self.owner = owner #Owner of this bullet.
 		self.pos = Point(0,0)
 		self.vel = Point(0,0)
-		self.color = Color(1.0, 0.7, 0.7)
+		self.color = Color(1, 0.7, 0.7)
 		self.life = 0 #Current life of the bullet.
 		self.speed = bulletspeed
 		self.lifespan = 1 #Maximum life span of bullet in seconds.
@@ -838,10 +835,8 @@ class player(machine):
 class MyScene(Scene):
 	###Main scene.
 	def setup(self):
-		global screenrad	
+		global screenrad
 		# This will be called before the first frame is drawn.
-#		print(stroke.__module__,line.__module__)
-#		print(type(self.bounds).__module__)
 		pos = self.bounds.center()
 		w = self.size.w
 		h = self.size.h
@@ -982,7 +977,6 @@ class MyScene(Scene):
 			self.uddone.set() #Signal update done.
 
 	def update1(self, dt):
-#		print(dt,self.t,self.dt,self.state.__name__)
 		###Update the scene.
 		if debug:
 			self.t0 = clock()
@@ -1043,7 +1037,7 @@ class MyScene(Scene):
 		c = self.bounds.center()
 		s = self.scoretxt[1]
 		image(self.scoretxt[0], c.x - (s.w / 2), self.size.h - s.h, *s)
-		clr = Color(1,1,0) if self.state == self.paused1 else Color(0.80, 0.40, 1.00)
+		clr = Color(1,1,0) if self.state == self.paused1 else Color(0.80, 0.40, 1)
 		if debug: #In debug draw timing text.
 			tmg = int((self.t1 - self.t0) * 1000.0)
 			text(str(tmg), x=20, y=20, alignment=9)
@@ -1058,7 +1052,7 @@ class MyScene(Scene):
 		self.drawscore()
 		self.drawcontrols()
 		
-		if mt and (self.state == self.run): #Wait for other thread to finish.
+		if mt and self.state == self.run: #Wait for other thread to finish.
 			self.uddone.wait()
 			self.uddone.clear()
 
