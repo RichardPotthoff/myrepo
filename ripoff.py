@@ -1011,7 +1011,7 @@ class MyScene(Scene):
 		c = self.bounds.center()
 		s = self.gameovertxt[1]
 		image(self.gameovertxt[0], c.x - (s.w / 2), c.y, *s)
-		self.update(self.dt / 4)
+		self.update1(self.dt / 4)
 
 	def run(self):
 		###Main state.
