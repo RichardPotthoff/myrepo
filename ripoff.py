@@ -193,7 +193,7 @@ def rotpoint(a, p):
 
 def clippoint(pnt, bound):
 	###Clip pnt in place to given bound.
-	bound=Rect(*bound)
+	bound=Rect(*bound) # 'self.scene.bounds' does not have 'left()','right()',... attributes
 	l = bound.left()
 	r = bound.right()
 	t = bound.top()
@@ -976,7 +976,7 @@ class MyScene(Scene):
 			self.udrobbers() #Update robbers.
 			self.uddone.set() #Signal update done.
 
-	def update1(self, dt):
+	def update1(self, dt): # called locally from "self.draw" via "self.state=self.run" 
 		###Update the scene.
 		if debug:
 			self.t0 = clock()
@@ -1003,7 +1003,7 @@ class MyScene(Scene):
 			self.t1 = clock()
 
 	###Pause state does nothing.
-	def paused1(self): pass
+	def paused1(self): pass # called locally from "self.draw()", via "self.state=self.paused1"
 
 	def gameover(self):
 		###Game over state.
