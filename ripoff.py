@@ -35,7 +35,7 @@
 from __future__ import absolute_import
 from time import clock
 from scene import *
-from my_scene_types import Rect,Color,Point
+from _scene_types import Rect,Color,Point
 from sound import *
 from threading import Thread, Event
 from math import sin, cos, pi, sqrt, acos, hypot, modf
@@ -838,12 +838,12 @@ class MyScene(Scene):
 		global screenrad
 		# This will be called before the first frame is drawn.
 		pos = self.bounds.center()
+		cp = Point(*pos)
+		pos.x = 0
 		w = self.size.w
 		h = self.size.h
 		w3 = w / 5 #1/5th Screen width.
 		w6 = w3 / 2 #1/10th Screen width.
-		cp = Point(*pos)
-		pos.x = w
 		screenrad = hypot(w, h) * .5 #Set screen radius.
 		self.pl = []
 		plr = player(pos, self, 1.0) #Create player 1.
@@ -852,7 +852,7 @@ class MyScene(Scene):
 		plr.moverect = Rect(w - w3, 0, w3, w3) #Set movement button rectangle.
 		plr.movepos = plr.moverect.center()
 		plr.shootrect = Rect(w - w6, w3 * 2.25, w6, w3) #Set fire button rectangle.
-		pos.x = 0
+		pos.x = w
 		plr = player(pos, self, -1.0) #Create player 2.
 		self.pl.append(plr)
 		plr.color = Color(0.40, 1.00, 0.40)
