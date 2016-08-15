@@ -35,7 +35,7 @@
 from __future__ import absolute_import
 from time import clock
 from scene import *
-from _scene_types import Rect,Color,Point
+from _scene_types import Rect,Color,Point #see https://github.com/omz/Pythonista-Issues/issues/150
 from sound import *
 from threading import Thread, Event
 from math import sin, cos, pi, sqrt, acos, hypot, modf
@@ -117,7 +117,7 @@ def center(p1, p2): return Point(p1.x + p2.x / 2, p1.y + p2.y / 2)
 ###Draw line between 2 points.
 #def drawline(p1, p2): line(p1.x, p1.y, p2.x, p2.y)
 def drawline(p1, p2): 
-	rect(0,0,0,0)
+	rect(0,0,0,0) #<- dummy call to get "stroke(color)" to work for "line(...)"
 	line(p1.x, p1.y, p2.x, p2.y)
 
 
