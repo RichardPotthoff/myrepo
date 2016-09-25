@@ -116,9 +116,13 @@ def dot(p1, p2): return p1.x * p2.x + p1.y * p2.y
 def center(p1, p2): return Point(p1.x + p2.x / 2, p1.y + p2.y / 2)
 ###Draw line between 2 points.
 #def drawline(p1, p2): line(p1.x, p1.y, p2.x, p2.y)
+import struct
 def drawline(p1, p2): 
 	rect(0,0,0,0) #<- dummy call to get "stroke(color)" to work for "line(...)"
-	line(p1.x, p1.y, p2.x, p2.y)
+	l=(p1.x, p1.y, p2.x, p2.y)
+#	if ((max(l)*25)>32000) or ((min(l)*25)<-32000):print(l)
+#	f.write(b''.join([struct.pack('h',int(x*25)) for x in l]))
+	line(*l)
 
 
 def normalize(pnt):
@@ -1093,5 +1097,8 @@ class MyScene(Scene):
 			if p.touch_ended(touch):
 				return
 		self.checkpause(touch.location) #Check for pause button press.
-
+#f=open('ripoff.log','wb')
+#if f:
 run(MyScene(), LANDSCAPE)
+#i=input("press enter to close file")
+#f.close()

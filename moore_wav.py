@@ -23,7 +23,7 @@ def moore(n):
 m=400
 noise_output = wave.open('noise2.wav', 'wb')
 #noise_output.setparams((2, 2, 44100, 0, 'NONE', 'not compressed'))#for wave
-noise_output.setparams((2, 2, 44100, 4096*m,'NONE', b'not compressed'))
+noise_output.setparams((2, 2, 44100, 4096*m,'NONE', 'not compressed'))
 d1 = datetime.datetime.now()
 values = []
 maxint=2**15-1
@@ -41,6 +41,7 @@ y=ifft(yf)
 value_str=b''.join([struct.pack('h',int(maxint*x)) for z in y for x in (real(z),imag(z))])
 print(len(value_str))
 noise_output.writeframes(value_str*m)
+print(noise_output.getparams())
 
 d2 = datetime.datetime.now()
 print ((d2 - d1), "(time for writing frames)")
