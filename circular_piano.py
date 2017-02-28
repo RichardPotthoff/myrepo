@@ -64,7 +64,7 @@ class Piano (Scene):
 		self.white_keys = []
 		self.black_keys = []
 		self.all_keys = []
-		r=0.49*min(self.size.w, self.size.h)
+		r=0.5*min(self.size.w, self.size.h)
 		key_textures = [Texture(img) for img in make_key_images(0.5*r,r,scale=1.0)]
 		key_names = ['weier%d.wav'%i for i in range(12)]
 		for key_name in key_names:
@@ -74,7 +74,7 @@ class Piano (Scene):
 		for i in range(12):
 			ang=pi/6*(6+i)
 			texture_index=0 if i in white_positions else 2
-			key=Key(SpriteNode(key_textures[texture_index],scale=1.0,position=(self.size.w/2+cos(ang)*0.75*r,self.size.h/2+sin(ang)*0.75*r)))
+			key=Key(SpriteNode(key_textures[texture_index],scale=1.0,position=(self.size.w/2+cos(ang)*0.74*r,self.size.h/2+sin(ang)*0.74*r)))
 			key.node.rotation=ang
 			[key.texture, key.highlight_texture] = key_textures[texture_index:texture_index+2]
 			key.name=key_names[i]

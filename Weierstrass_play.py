@@ -8,4 +8,4 @@ for i in range(12):
 	  print(noise_input.duration)
 #	  noise_input.number_of_loops=0
 	  noise_input.play()
-	  time.
+

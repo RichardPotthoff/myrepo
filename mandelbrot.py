@@ -1,4 +1,7 @@
+from __future__ import absolute_import
+from __future__ import print_function
 from numpy import *
+from six.moves import range
 
 def show_plot():
   axis('off')
@@ -18,7 +21,7 @@ def mandel(n, m, itermax, xmin, xmax, ymin, ymax):
     iy.shape = n*m
     c.shape = n*m
     z = copy(c)
-    for i in xrange(itermax):
+    for i in range(itermax):
         if not len(z): break # all points have escaped
         multiply(z, z, z)
         add(z, c, z)
@@ -46,7 +49,7 @@ if __name__=='__main__':
       dx=1.25/zoom
       dy=1.25/zoom
       I = mandel(400, 400,n,x0-dx, x0+dx, y0-dy,y0+dy)
-      print 'Time taken:', time.time()-start, "zoom=",zoom
+      print('Time taken:', time.time()-start, "zoom=",zoom)
       I[I==0] = n+1
       I[198:201,198:201]=3*n/4+1
       I[199,199]=n+1

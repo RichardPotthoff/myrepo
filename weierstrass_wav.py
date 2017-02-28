@@ -19,14 +19,19 @@ for note in range(13):
 	n=int(samplerate/f_min+0.5)
 #	print(n)
 	dphi=2.0*pi/n
-	yA=[sin(i*dphi) for i in range(n)]
+	yA=[cos(i*dphi) for i in range(n)]
 #	ab=[(0.6666**(i+enote),1<<i) for i in range(11)]
-	ab=[(0.25*exp(-((i+enote-4)/2)**2),1<<i) for i in range(11)]	
+	ab=[((2*(i%2)-1)*0.25*exp(-((i+enote-4)/2)**2),1<<i) for i in range(11)]	
 	yB=[sum([a*yA[(i*f)%n]for (a,f)in ab]) for i in range(n)]
+	for i in range(n):
+		if (yB[i]>0)!=(yB[i-1]>0):
+			break
+	yB=yB[i:]+yB[:i]
+	print(i,yB[:4],yB[-4:])
 	ymax1=1.0/max(max(yB),abs(min(yB)))
 	print ('ymax=',ymax1)
 	ymax1=0.5625
-	ymax1=2.0
+	ymax1=2
 	value_str=b''.join(struct.pack('h',y) for yWeier in yB for y in (int(yWeier*ymax1*maxint),))
 	
 #	print(len(value_str))
