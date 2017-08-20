@@ -143,11 +143,13 @@ class DigiLock (object):
     if combination_invalid_flag:
       newstate|=self.invalidmask
     return newstate|data<<self.statebitcount
-  def eprom(self):
+  def eprom(self,addressinvertmask=0x0000,datainvertmask=0x00):
     n_bits=self.statebitcount+self.keypad.ncols+self.keypad.nrows
     result=[0xFF]*(1<<n_bits)
+    addressinvertmask&=(1<<n_bits)-1
+    datainvertmask&=0xFF
     for i in range(1<<n_bits):
-      result[i]=self.nextstate(i)
+      result[i^addressinvertmask]=self.nextstate(i)^datainvertmask
     return result
 
 
@@ -201,7 +203,8 @@ class Game(Scene):
     self.combination=combination
   def setup(self):
     self.keypad=Keypad()
-    self.Eprom=DigiLock(combination=self.combination).eprom()
+    self.digiLock=DigiLock(combination=self.combination)
+    self.Eprom=self.digiLock.eprom()
     self.location=None
     self.locations=[]
     self.score_label = LabelNode('0', font=('Avenir Next', 0.052*min(self.size)), position=(self.size.w/2, self.size.h-0.065*min(self.size)),alpha=1.0, parent=self)
@@ -232,8 +235,10 @@ class Game(Scene):
     self.score_label.text='{2:08b} {1:07b} ={0:2X}\n{3:08b}'.format(self.keypad.decode(n),mirror_bits(n,7),self.state,nextstate)
     self.LED.color=((self.state>>7)&1,(self.state>>6)&1,(self.state>>5)&1)
     if (self.state^nextstate)&0b11111:
-      print('{0:08b}{1:3d}'.format(self.state,grayToInt(self.state&0b11111)))
+      print('{3:03b} {1:0{0}b}{2:3d} '.format(self.digiLock.statebitcount,self.state&self.digiLock.statemask,grayToInt(self.state&self.digiLock.statemask), self.state>>self.digiLock.statebitcount))
+#      print('{0:08b}{1:3d}'.format(self.state,grayToInt(self.state&0b11111)))
 #                       print('{0:08b}\n'.format(nextstate))
+
     self.state=nextstate
 
 
