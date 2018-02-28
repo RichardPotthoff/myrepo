@@ -30,6 +30,7 @@ class StateTable(scene.ShapeNode):
       if self.data[i]&0x7f>63:cell.color='#ff0000'
       if ((self.data[i] & 0x7f+128)-(i & 0x7f))%128==1 and i&0x7f != 63:cell.color='#00c010'
       if ((self.data[i] & 0x7f)-(i & 0x7f))==0:cell.color='#000000'
+      if ((self.data[i] & 0x7f+128)-(i & 0x7f))%128==127:cell.color='#ff0000'
       self.cells[i]=cell
       self.add_child(cell)
     self.updateState()
@@ -145,8 +146,8 @@ class dial_lock (Scene):
     pass
 addressInversionMask=(1<<9)-1 
 dataInversionMask=(1<<8)-1
-#f= open('counter128.bin','rb')
-f=open('lock_L3R1L31R8L18R16.bin','rb')
+f= open('counter128.bin','rb')
+#f=open('lock_L3R1L31R8L18R16.bin','rb')
 eprom=f.read()
 f.close
 from EpromSafe import extractAction
