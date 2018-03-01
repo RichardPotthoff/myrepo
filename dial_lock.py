@@ -7,6 +7,8 @@ import sound
 import os
 from itertools import chain
 from math import radians,pi,sin,cos,atan2
+from EpromSafe import extractAction,intToGray,grayToInt
+
 class StateTable(scene.ShapeNode):
   def __init__(self,x,y,w,h,data,**args):
     scene.Node.__init__(self,**args)
@@ -28,31 +30,35 @@ class StateTable(scene.ShapeNode):
       cell.position=(c*18+self.size.w-200,self.size.h-36-11*r)
       cell.color=(0,0,0)
       if self.data[i]&0x7f>63:cell.color='#ff0000'
-      if ((self.data[i] & 0x7f+128)-(i & 0x7f))%128==1 and i&0x7f != 63:cell.color='#00c010'
+      if ((self.data[i] & 0x7f+128)-(i & 0x7f))%128==1 and i&0x7f != 63:cell.color='#009e0d'
       if ((self.data[i] & 0x7f)-(i & 0x7f))==0:cell.color='#000000'
       if ((self.data[i] & 0x7f+128)-(i & 0x7f))%128==127:cell.color='#ff0000'
       self.cells[i]=cell
       self.add_child(cell)
-    self.updateState()
     p=ui.Path()
     p.move_to(0,0)
-    p.line_to(0,self.size.h)
+    p.line_to(0,self.size.h-50)
     p.move_to(18*5,0)
-    p.line_to(18*5,self.size.h)
+    p.line_to(18*5,self.size.h-50)
     self.cursor=ShapeNode(p)
     self.cursor.anchor_point=(0,0)
     self.cursor.position=(self.size.w-200,0)
     self.cursor.stroke_color=(0,0,0)
     self.add_child(self.cursor)
+    self.stateLabel=LabelNode('',position=(0,13),anchor_point=(0,0),color='#000000',scale=1,font=('Ubuntu Mono',14))
     self.phase=0.75
     self.state=0
+    self.add_child(self.stateLabel)
+    self.updateState()
+
+    
   @property
   def phase(self):
     return self.phase_
   @phase.setter
   def phase(self,phi):
-    self.phase_=4*frac(1/8+phi)
-    self.cursor.position=(self.size.w-200-9+18*self.phase_,0)
+    self.phase_=4*(frac(1/8+phi)%1)
+    self.cursor.position=(self.size.w-200-9+18*self.phase_,30)
     self.updateState()
   @property
   def state(self):
@@ -65,7 +71,10 @@ class StateTable(scene.ShapeNode):
     while self.state_ != self.data[(int(self.phase_)<<7)|self.state_]&0x7f:
       self.state_=self.data[(int(self.phase)<<7)|self.state_]&0x7f
     self.statebox.position=self.cells[(int(self.phase_)<<7)|self.state_].position
-    
+    self.stateLabel.text='State:{0:3d}, Phase:{1:02b}, Data:{2:08b}'.format(self.state,intToGray(int(self.phase)),intToGray(self.data_out))
+  @property
+  def data_out(self):
+    return self.data[(int(self.phase_)<<7)|self.state_]
 
 class dial(scene.Node):
   def __init__(self,x,y,r1,r2,n,**args):
@@ -120,8 +129,10 @@ class dial_lock (Scene):
     r=0.49*min(self.size.w, self.size.h)
     rled=r*0.025
     for pos in ((self.size.h/2+0.95*r,self.size.h/2+sin(pi/32)*r),(self.size.h/2+0.95*r,self.size.h/2-sin(pi/32)*r)):
-      circ=scene.ShapeNode(ui.Path.oval(0,0,2*rled,2*rled),stroke_color=(0.5,0.5,1),fill_color=(0.5,0.5,1),position=pos)
+      circ=scene.ShapeNode(ui.Path.oval(0,0,2*rled,2*rled),fill_color='#00ffde',stroke_color='#000000',position=pos)
       self.add_child(circ)
+    self.statusLed=scene.ShapeNode(ui.Path.oval(0,0,2*rled,2*rled),color='#ff0000',position=(self.size.h-20,20))
+    self.add_child(self.statusLed)
     self.dial=dial(self.size.h/2,self.size.h/2,0.9*r,r,n,scale=1.0)
     self.add_child(self.dial)
     text=LabelNode("——",color=(0,0,0))
@@ -139,6 +150,7 @@ class dial_lock (Scene):
     angle=atan2(touch.location.y-self.dial.position.y,touch.location.x-self.dial.position.x)
     self.dial.rotation+=angle-self.last_angle
     self.stateTable.phase=(-self.dial.rotation+2*pi)/(2*pi/(self.dial.n/4))+0.75
+    self.statusLed.color='#00ff16' if self.stateTable.data_out&0x80 else '#ff0000'
     self.last_angle=angle
     pass
 
@@ -146,12 +158,11 @@ class dial_lock (Scene):
     pass
 addressInversionMask=(1<<9)-1 
 dataInversionMask=(1<<8)-1
-f= open('counter128.bin','rb')
-#f=open('lock_L3R1L31R8L18R16.bin','rb')
+#f= open('counter128.bin','rb')
+f=open('lock_L3R1L31R8L18R16.bin','rb')
 eprom=f.read()
 f.close
-from EpromSafe import extractAction
 actions=[extractAction(eprom,address,phase,addressInversionMask,dataInversionMask)for phase in range(4) for address in range(128) ]
 p=dial_lock(actions)
-run(p, LANDSCAPE,show_fps=True)
+run(p, scene.LANDSCAPE,show_fps=True)
 
