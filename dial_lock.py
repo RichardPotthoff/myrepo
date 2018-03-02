@@ -1,6 +1,6 @@
-# Piano
+# Visual Simulator for EpromSafe.py state machine
 #
-# A simple multi-touch piano.
+# 
 import scene
 from scene import *
 import sound
@@ -35,6 +35,15 @@ class StateTable(scene.ShapeNode):
       if ((self.data[i] & 0x7f+128)-(i & 0x7f))%128==127:cell.color='#ff0000'
       self.cells[i]=cell
       self.add_child(cell)
+    for i in range(128):
+      c=((i>>6&1)<<2)
+      r=i&((1<<6)-1)
+      if c>3:r=63-r
+      if c>3:c+=1
+      cell=LabelNode("%4d:"%(8),scale=0.5)
+      cell.position=(c*18+self.size.w-200-20,self.size.h-36-11*r)
+      cell.color=(0,0,0)
+
     p=ui.Path()
     p.move_to(0,0)
     p.line_to(0,self.size.h-50)
