@@ -8,6 +8,78 @@ import os
 from itertools import chain
 from math import radians,pi,sin,cos,atan2
 from EpromSafe import extractAction,intToGray,grayToInt
+from functools import reduce
+from operator import __or__
+class SevenSegment(scene.ShapeNode):
+  bin2segnames=['ce','be','cf','bf']
+  hex2segnames=['abcdef','bc','abged','abcdg','bcgf','afgcd','acdefg','abc',
+            'abcdefg','abcfg','abcefg','cdefg','defa','bcdeg','adefg','aefg']
+  def segmentsFromByte(value,segmentorder='pcdegfab'):
+    return  [c for i,c in enumerate(segmentorder) if value & (1<<i)]
+  def byteFromSegments(value,segmentorder='pcdegfab'):
+    return  reduce(__or__,[0,0]+[1<<(segmentorder.find(c)) for c in value])
+  def byteFromNumber(value,digit=0,base=16,segmentorder='pcdegfab',dp=False):
+    x1=value // (base ** digit)
+    if (x1==0) and (((base==10)and (digit>0)) or ((base==16) and (digit>1))):
+      return SevenSegment.byteFromSegments('p' if dp else'')
+    else:
+      x= x1 % base
+      return SevenSegment.byteFromSegments(SevenSegment.bin2segnames[x] if base==4 else SevenSegment.hex2segnames[x]+('p' if dp else''),segmentorder=segmentorder)
+  def byteFromAddress(address,segmentorder='pcdegfab'):
+    value   = address & (0b000011111111)
+    digit   =(address & (0b001100000000))>>8
+    encoding=(address & (0b110000000000))>>10
+    value,base=((value,4),(value,16),(value,10),(grayToInt(value^0xff),10))[encoding]#[bin,hex,dec,gray_dec]
+#    print(encoding,digit,value,base)
+    return SevenSegment.byteFromNumber(value,digit,base,segmentorder=segmentorder,dp=(base==10 and digit==0)or(encoding==3 and digit==3))^0xff
+  def Eprom(segmentorder='pcdegfab'):
+    for i in range(1<<12):
+      yield SevenSegment.byteFromAddress(i,segmentorder=segmentorder)
+#  hex2segbits=[reduce(__or__,[1<<(a.find(c)-1) for c in n]) for a,n in zip([segmentnames]*16,hex2segnames)]
+  def __init__(self,size=(10,20),background_color='#73ff55',segmentorder='pcdegfab',**args):
+    scene.Node.__init__(self,**args)
+    self.anchor_point=(0,0)
+    self.size=size
+    self.background_color=background_color
+    self.segmentorder=segmentorder
+    self.activeSegments_=set(self.hex2segnames[0])
+    self.add_child(scene.ShapeNode(ui.Path.rect(0,0,*self.size),color=self.background_color,anchor_point=(0,0)))
+    def segment(center,length,angle,**args):
+      p=ui.Path()
+      p.line_cap_style=ui.LINE_CAP_ROUND
+      p.line_width=5
+      p.move_to(0,0)
+      p.line_to(length,0)
+      s=scene.ShapeNode(p,stroke_color='#ff2b2b',**args)
+      s.position=center
+      s.rotation=angle
+      return s
+    segments=list(segment((self.size.w/2,self.size.h*(0.5+0.45*i)),self.size.width*0.8,0.0,scale=0.9)for i in (-1,0,1))
+    segments+=list(segment((self.size.w*(0.5-0.45*j),self.size.h*(0.5-0.225*i)),self.size.width*0.8,pi/2,scale=0.9)for i in (-1,1) for j in(-1,1) )
+    segments.append(scene.ShapeNode(ui.Path.oval(0,0,7,7),position=(self.size.w*1.15,self.size.h*0),fill_color='#ff2b2b'))
+    self.segments={name:segment for name,segment in zip(['d','g','a','b','f','c','e','p'],segments)}
+    for s in self.segments:
+      self.add_child(self.segments[s])
+    self.draw()
+      
+  @property
+  def bits(self):
+    return self.__class__.byteFromSegments(self.activeSegments_,segmentorder=self.segmentorder)
+  @bits.setter
+  def bits(self,bits):
+    self.activeSegments_=set(self.__class__.segmentsFromByte(bits,segmentorder=self.segmentorder))
+    self.draw()
+  @property
+  def activeSegments(self):
+    return self.activeSegments_
+  @activeSegments.setter
+  def activeSegments(self,activeSegments):
+    self.activeSegments_=set(activeSegments)&set(self.segmentorder)
+    self.draw()
+  def draw(self):
+    for c,s in self.segments.items():
+      s.alpha=1.0 if c in self.activeSegments_ else 0.1
+      
 
 class StateTable(scene.ShapeNode):
   def __init__(self,x,y,w,h,data,**args):
@@ -164,6 +236,12 @@ class dial_lock (Scene):
     self.dial.angle=pi/16
     self.stateTable=StateTable(self.size.h,0,self.size.w-self.size.h,self.size.h,self.data)
     self.add_child(self.stateTable)
+    self.sevenSegmentEprom=list(SevenSegment.Eprom())
+    self.sevenSegment=[[SevenSegment(position=(-25+(4-i)*45,20+j*65),size=(30,60)) for i in range(4)] for j in range(4)]
+    for i in range(4):
+      for j in range(4):
+        self.add_child(self.sevenSegment[i][j])
+    
     
   def touch_began(self, touch):
     self.last_angle=atan2(touch.location.y-self.dial.position.y,touch.location.x-self.dial.position.x)
@@ -173,6 +251,9 @@ class dial_lock (Scene):
     angle=atan2(touch.location.y-self.dial.position.y,touch.location.x-self.dial.position.x)
     self.dial.rotation+=angle-self.last_angle
     self.stateTable.phase=(-self.dial.rotation+2*pi)/(2*pi/(self.dial.n/4))+0.75
+    for encoding in range(4):
+      for digit in range(4):
+        self.sevenSegment[encoding][digit].bits=self.sevenSegmentEprom[encoding<<10|digit<<8|(~intToGray(self.stateTable.state) & 0xff)]^0xff
     self.statusLed.color='#00ff16' if self.stateTable.data_out&0x80 else '#ff0000'
     self.last_angle=angle
     pass
@@ -181,10 +262,11 @@ class dial_lock (Scene):
     pass
 addressInversionMask=(1<<9)-1 
 dataInversionMask=(1<<8)-1
-#f= open('counter128.bin','rb')
-f=open('lock_L3R1L31R8L18R16.bin','rb')
+f= open('counter128.bin','rb')
+#f=open('lock_L3R1L31R8L18R16.bin','rb')
 eprom=f.read()
 f.close
+f=open('7Segment.bin','wb');f.write(bytes(SevenSegment.Eprom()));f.close()
 actions=[extractAction(eprom,address,phase,addressInversionMask,dataInversionMask)for phase in range(4) for address in range(128) ]
 p=dial_lock(actions)
 run(p, scene.LANDSCAPE,show_fps=True)

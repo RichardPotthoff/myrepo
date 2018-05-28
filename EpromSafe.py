@@ -76,7 +76,7 @@ if __name__=='__main__':
   actions_=[[extractAction(CounterEprom,state,phase,addressInversionMask,dataInversionMask) for phase in range(4)]for state in range(128)]
   def makeOscEprom(nbits):
     n=1<<nbits
-    return [intToGray((grayToInt(i)+1)%n) for i in range(n)]  
+    return [intToGray((i+1)%n)|((1<<(i//4+4)) if ((nbits==4) and (((i+1)%4)!=0)) else 0) for j in range(n) for i in (grayToInt(j),)]  
   oscs=[makeOscEprom(i) for i in [1,1,2,3,4,5,6,7,8]]
   alloscs=[y for x in oscs for y in x] 
   phase=1
@@ -98,11 +98,11 @@ if __name__=='__main__':
   #  print('{0:3d} {1:07b} {2:07b} {3:3d}'.format(i,intToGray(i),intToGray(127-i), 127-i))
   state=0
   for i in range(100):
-    state=alloscs[state+32]
-    print(grayToInt(state))
+    state=alloscs[(state & 0x0f)+16]
+    print('{1:1x}{0:1x}'.format(grayToInt((state&0xf)>>2),state>>4))
   
   
-  #with open('oscs.bin','wb') as f: f.write(bytes(alloscs));f.close()
+  #with open('oscs_a.bin','wb') as f: f.write(bytes(alloscs));f.close()
   #with open('lock_L3R1L31R8L18R16.bin','wb') as f: f.write(bytes(Eprom));f.close()
-  #with open('counter128.bin','wb') as f: f.write(bytes(CounterEprom));f.close()
+  #with open('counter128a.bin','wb') as f: f.write(bytes(CounterEprom));f.close()
   #print(('{:05d} {:04x} {:04x} {:016b} {:05d}\n'*65).format(*[j for i in range(65) for j in (i*512,i*512,0x8000-512*i,0x8000-512*i,0x8000-512*i)]))
