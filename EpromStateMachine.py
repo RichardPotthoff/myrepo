@@ -166,7 +166,7 @@ def fastforward(i,j):
   jg=intToGray(j)
   xij=ig^jg
   msb=xij.bit_length()-1
-  return grayToInt(ig^1<<msb if msb>0 else jg)
+  return grayToInt(ig^1<<msb if msb>=0 else jg)
 
 #-----------------------------------------------------------------------
 def distance(shape,p):
