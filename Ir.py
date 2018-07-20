@@ -1,6 +1,28 @@
 # A State machine that decodes IR remote control signals, and changes an output bit 
 # if the correct code is received.
-# This example is for a controller that sends a NEC IR transmission frame (start bit,address(8 bit),~address,command(8 bit),~command) 
+# This example is for a controller that sends a NEC IR transmission frame (start bit, address(8 bit),~address,command(8 bit),~command). The 'address' value is always 0. Other values for 'address' may not synchronize properly, and a separate R/C circuit may be required to generate a reset signal from the start bit. In the current implementation, the start bit is detected as a regular '1', and the 8 following '0' bits from the 'address' guarantee synchronization. 
+#
+#Hardware implementation:
+#IC1: Eprom 27c256
+#IC2: 1838 Ir receiver
+#C1: 0.1uF*
+#R1: 6.8kOhm*, R2: 220kOhm, R3:22kOhm
+#Q1: pnp transistor (e.g. 2N3906)
+#LED1: green LED
+#
+# *: R1*C1 should be around 0.630ms, but anything between 0.4ms and 1.0ms worked for me
+#
+#Circuit Nodes:
+#GND: IC1[GND,~CE,~OE], R1[1], C1[1], IC2[GND], LED1[C]
+#VCC: IC1[Vcc,Vpp], IC2[Vcc], Q1[E]
+#RX: Q1[C], IC1[A9], R1[2], C1[2]
+#CLK: IC2[Sig],IC1[A8],R2[1]
+#Q1[B]: R2[2]
+#StatusOut: IC1[D7], R3[1], IC1[A7|A10|..A14]
+#LED: LED1[A],R3[2]
+#Feedbacks: IC1[D0..D6]->IC1[A0..A6]
+#Configuration: IC1[A7,A10..A14]->(Vcc|GND|IC1[D7]) **
+# **: The number of '1' bits in the Address bits (7,10..14) must be odd if D7 is '1', and must be even if D7 is '0'. This means that the number of these Adress lines tied to 'Vcc' must be even (otherwise the locic would be reversed: the number of '1' bits would be odd for D7='0'). Only one of the address lines can be connected to D7, otherwise the parity of the Address bits is undefined during the transition.
 
 import scene
 from itertools import accumulate
