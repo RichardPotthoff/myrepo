@@ -15,8 +15,8 @@
 #Circuit Nodes:
 #GND: IC1[GND,~CE,~OE], R1[1], C1[1], IC2[GND], LED1[C]
 #VCC: IC1[Vcc,Vpp], IC2[Vcc], Q1[E]
-#RX: Q1[C], IC1[A9], R1[2], C1[2]
-#CLK: IC2[Sig],IC1[A8],R2[1]
+#RX: Q1[C], IC1[A8], R1[2], C1[2]
+#CLK: IC2[Sig],IC1[A9],R2[1]
 #Q1[B]: R2[2]
 #StatusOut: IC1[D7], R3[1], IC1[A7|A10|..A14]
 #LED: LED1[A],R3[2]
@@ -139,8 +139,8 @@ def newState(address,code=d2['BTN_0'],dontCare=0):#Example codes for BTN_0 and B
     state=state^0x40#flip bit 6 if output bit is on
   step = grayToInt(state&0x7f)
   if step>63:step=step-128
-  clock = (address>>8)&1
-  serialIn  = (address>>9)&1
+  clock = (address>>9)&1
+  serialIn  = (address>>8)&1
   clockTriggered = step%2 == clock
   currentBitPos=msbBitPos-(step+1)//2 if step>=0 else msbBitPos #msb is transmitted first
   newstep=step
@@ -201,7 +201,7 @@ def generate_signal(bytecode=d3['BTN_0']):
   yield((0,1))
 
 class IR_Receiver():
-  def __init__(self,Eprom=(0xFF,)*6*1024,state=0,clkBitPos=8,rxBitPos=9,feedbackBitPos=10,baseAddress=0):
+  def __init__(self,Eprom=(0xFF,)*6*1024,state=0,clkBitPos=9,rxBitPos=8,feedbackBitPos=10,baseAddress=0):
     self.Eprom=Eprom
     self.clkBitPos=clkBitPos
     self.rxBitPos=rxBitPos
@@ -267,7 +267,7 @@ def testStateMachine(codes= (0,1,2,4,5,7,8,0,1,2,4,5,7,8), fbp=7,ba=0):
     for x in generate_signal(code):
       i=0
       while True:
-        address=(state&0x7f)|0x00|(x[0]<<8)|(x[1]<<9)|(state&0x80)<<(fbp-7)|ba
+        address=(state&0x7f)|0x00|(x[0]<<9)|(x[1]<<8)|(state&0x80)<<(fbp-7)|ba
         newstate=g[address^((1<<8)|(1<<9))]^0x00
 #        print('A ', x[0],x[1],'{:016b} {:08b} {:3d}'.format(address,state,grayToInt(state&0x7f)))
         if state&0x80!=newstate&0x80: 
@@ -351,6 +351,6 @@ scene.run(IR1,scene.LANDSCAPE,show_fps=True)
 #testStateMachine(fbp= 7,ba=0b000000<<7)#+
 #testStateMachine(fbp=11,ba=0b001001<<7)#+
 #testStateMachine(fbp=11,ba=0b000000<<7)#+
-#with open('IR_Remote.bin','wb') as f: f.write(bytes(g));f.close()
+#with open('IR_Remote_a.bin','wb') as f: f.write(bytes(g));f.close()
 
   
