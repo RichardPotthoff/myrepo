@@ -27,8 +27,11 @@ axis('off')
 axes().set_aspect('equal', 'datalim')	
 subplots_adjust(left=0, right=1, top=1, bottom=0)
 show()
+xmax,ymax,_=np.max(points,0)
+xmin,ymin,_=np.min(points,0)
+ymin=0.0
 for MM in M+[np.matrix(np.eye(3))]:
-  box=asarray([[-2.8,0,1],[-2.8,10,1],[2.8,10,1],[2.8,0,1],[-2.8,0,1]]*MM).transpose()
+  box=asarray([[xmin,ymin,1],[xmin,ymax,1],[xmax,ymax,1],[xmax,ymin,1],[xmin,ymin,1]]*MM).transpose()
   plot(box[1][1:],-box[0][1:],color='red',linestyle='solid',linewidth=1)   
   plot(box[1][:2],-box[0][:2],color='blue',linestyle='solid',linewidth=1)           
 show()
