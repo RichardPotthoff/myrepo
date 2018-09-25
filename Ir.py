@@ -257,7 +257,7 @@ class IR_Receiver():
     
 def testStateMachine(codes= (0,1,2,4,5,7,8,0,1,2,4,5,7,8), fbp=7,ba=0):
   codes=[(i,list(d3.items())[i][1])for i in codes] 
-  state=126
+  state=255
   IR2=IR_Receiver(Eprom=g,baseAddress=ba,feedbackBitPos=fbp)
   IR2.state_=state^0x00
   for key_number,code in (codes):

@@ -11,3 +11,8 @@ for offset,filename in Sections:
   o_buffer[offset:offset+len(i_buffer)]=bytearray(i_buffer)
 import time
 #with open(time.strftime('%Y%m%d')+'.bin','wb') as f: f.write(bytes(o_buffer))
+base=0b0110101100000000
+x=255
+for i in range(256):
+  print('{0:08b}'.format(x))
+  x=o_buffer[base|x]
