@@ -77,15 +77,34 @@ b=[x.split() for x in a.split("begin raw_codes")[1].split("end raw_codes")[0].sp
 d={x[0].strip():[int(y)for y in x[1:]] for x in b}
 f.close()
 
-def gen_pwl(ButtonName):
-  t=accumulate(d[ButtonName])
-  return [((t+y)/1e6,1-(y^(i & 1))) for i,t in enumerate(t) for y in (0,1)]
+def gen_pwl(pw=[0]+d['BTN_0']):
+  t=accumulate(pw)
+  return [((t+y)/1e6,y^(i & 1)) for i,t in enumerate(t) for y in (0,1)]
   
-
+def rc_filter(pwl,dt=0.000580/5,tmax=0.08,t0=0,y0=0):
+  y=y0
+  t=t0
+  c1=1.5/5
+  c2=0.5/5
+  yield(t,y)
+  for t1,y1 in pwl:
+    if t>tmax:
+      break
+    while t<t1:
+      t=t+dt
+      if t>tmax:
+        break
+      if y1>y:
+        y=min(y1,y+c1)
+      else:
+        y=c2*y1+(1-c2)*y
+      yield (t,y)
+  
+    
 def write_pwl_Files():
   for bn in d.keys():
     with open(bn+".txt","w") as of:
-      of.write("\n".join(["{:8f} {:d}".format(*x) for x in gen_pwl(bn)]))
+      of.write("\n".join(["{:8f} {:d}".format(*x) for x in gen_pwl([0]+d[bn])]))
       
 def gen_bits(ButtonName,blank_even=True,blank_character=''):
   return ''.join([blank_character if (((i%2)==0)and blank_even)else '1' if dt>1000 else '0' for i,dt in enumerate(d[ButtonName])])
@@ -122,6 +141,21 @@ def byteToCode(b):
   ph=reverseByte(p>>8 & 0xff)
   pl=reverseByte(p & 0xff)
   return ((ah<<24)|((ah^0xff)<<16)|(al<<8)|(al^0xff),(ph<<24)|(ph<<16)|(pl<<8)|pl)
+
+def generate_pw(bytecode=d3['BTN_0']):
+  yield(0)
+  yield(8900)
+  yield(4600)
+  code= byteToCode(bytecode)[0]
+  for i in range(32):
+    yield(580)
+    yield(580*[1,3][code>>(31-i)&1])
+  yield(580)
+  yield(40000)
+  yield(8900)
+  yield(2300)
+  yield(580)
+
 
 assert sum([x^byteToCode(y)[0] for k in d2 for x,y in ((d2[k],d3[k]),)])==0
   
@@ -316,22 +350,44 @@ class IrRemote(scene.Scene):
       if self.IR_Receivers[i][0].D7==1:
         circ.fill_color='lightgreen'
       self.add_child(circ)
+    self.statustext=scene.LabelNode('Code:',scale=1,color='black',anchor_point=(0,0),position=(self.size.width*0.475,self.size.height*0.08))
+    self.add_child(self.statustext)
     self.dy=min(self.size)/7
     self.dx=min(min(self.size)/4,self.dy*1.5)
     buttonheight=0.9*self.dy
     buttonwidth=buttonheight
-    colors=[['red','black','green'], ['green','black','black'], ['magenta','blue','blue'], ['black','red','red'],['black','black','black'],['black','black','black'],['black','black','black'] ]
-    texts=[['OI','Mod','Mute'],['>||','|<<','>>|'],['EQ','-','+'],['0','$','U/SD'],['1','2','3'],['4','5','6'],['7','8','9']]
+    self.colors=[['red','black','green'], ['green','black','black'], ['magenta','blue','blue'], ['black','red','red'],['black','black','black'],['black','black','black'],['black','black','black'] ]
+    self.texts=[['OI','Mod','Mute'],['>||','|<<','>>|'],['EQ','-','+'],['0','$','U/SD'],['1','2','3'],['4','5','6'],['7','8','9']]
     for i in range(3):
       for j in range(7):
-        button=Button(scene.ui.Path.oval(0,0, buttonwidth, buttonheight), color=colors[j][i], position=(1.5*self.dx+(i-(3-1)/2)*self.dx,self.size.h/2-(j-(7-1)/2)*self.dy), text=texts[j][i], response='{:>17s} {:02x}'.format(*list(d3.items())[j*3+i]))
+        button=Button(scene.ui.Path.oval(0,0, buttonwidth, buttonheight), color=self.colors[j][i], position=(1.5*self.dx+(i-(3-1)/2)*self.dx,self.size.h/2-(j-(7-1)/2)*self.dy), text=self.texts[j][i], response='{:>17s} {:02x}'.format(*list(d3.items())[j*3+i]))
 #        button.add_child(scene.LabelNode(texts[j][i],scale=2))
         self.add_child(button)
+    self.chart_clk=scene.ShapeNode(scene.ui.Path(),fill_color='red',stroke_color='black',position=(self.size.width*0.5,self.size.h*0.05),anchor_point=(0,0))
+    self.add_child(self.chart_clk)
+    self.add_child(scene.LabelNode('clk',scale=1,color='black',anchor_point=(1.0,0),position=(self.size.width*0.5,self.size.h*0.05)))
+    self.chart_dat=scene.ShapeNode(scene.ui.Path(),fill_color='blue',stroke_color='black',position=(self.size.width*0.5,self.size.h*0.02),anchor_point=(0,0))
+    self.add_child(self.chart_dat)
+    self.add_child(scene.LabelNode('dat',scale=1,color='black',anchor_point=(1.0,0),position=(self.size.width*0.5,self.size.h*0.02)))
+
   def touch_began(self,touch):
     i=round(touch.location[0]/self.dx-(0.5))
     j=round(-(touch.location[1]-self.size.h/2)/self.dy+3)
     if i>=0 and i<3 and j>=0 and j<7:
-       print('{:>17s} {:2d}'.format(*list(d3.items())[j*3+i]))
+#       print('{:>17s} {:2d}'.format(*list(d3.items())[j*3+i]))
+       self.statustext.text='Code: {1:02d} ( {2:s} )'.format(*(list(d3.items())[j*3+i]+(self.texts[j][i],)))
+       p=scene.ui.Path()
+       p.move_to(0,20)
+       for a in [(t*6000,(1-y)*20) for t,y in gen_pwl(generate_pw((list(d3.items())[j*3+i][1]))) if t<0.08]:
+         p.line_to(*a)
+       p.line_to(0.08*6000,20)
+       self.chart_clk.path=p
+       p=scene.ui.Path()
+       p.move_to(0,20)
+       for a in [(t*6000,(1-y)*20) for t,y in rc_filter(gen_pwl(generate_pw((list(d3.items())[j*3+i][1]))))]:
+         p.line_to(*a)
+       p.line_to(0.08*6000,20)
+       self.chart_dat.path=p
        for x in generate_signal((list(d3.items())[j*3+i][1])):
 #         print(x)
          for IR,led in self.IR_Receivers:
