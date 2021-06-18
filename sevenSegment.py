@@ -188,7 +188,8 @@ class dial(scene.Node):
     p.add_arc(0,0,r2,-ang1/2,ang1/2,True)
     p.add_arc(0,0,r1,ang1/2,0,False)
     p.close()   
-    rcorr=(cos(ang1/2)*r1+r2)/2
+    rcorr=(cos(ang1/2)*r1+r2)/2.0
+    rcorr=0.0
     for i in range(self.n//4):
       ang=(4*i+3)*(2*pi/n)
       flag=ShapeNode(p)
@@ -196,6 +197,7 @@ class dial(scene.Node):
       flag.stroke_color=(0,0,0)
       flag.alpha=0.8
       flag.position=(cos(ang)*rcorr,sin(ang)*rcorr)
+      flag.anchor_point=(0.0,0.5)
       flag.rotation=ang
       self.add_child(flag)
       self.all_flags.append(flag)
@@ -204,7 +206,7 @@ class dial(scene.Node):
     circ.stroke_color=(0,0,0)
     self.add_child(circ)
     for i in range(self.n):
-      ang=-i*2*pi/self.n
+      ang=(1-i)*2*pi/self.n
       text=LabelNode("%3d – "%(i),color=(0,0,0),scale=1.0)
       text.rotation=ang
       text.position=(cos(ang)*(self.r1-text.size.w/2),sin(ang)*(self.r1-text.size.w/2))
@@ -266,7 +268,7 @@ f= open('counter128.bin','rb')
 #f=open('lock_L3R1L31R8L18R16.bin','rb')
 eprom=f.read()
 f.close
-f=open('7Segment.bin','wb');f.write(bytes(SevenSegment.Eprom()));f.close()
+#f=open('7Segment.bin','wb');f.write(bytes(SevenSegment.Eprom()));f.close()
 actions=[extractAction(eprom,address,phase,addressInversionMask,dataInversionMask)for phase in range(4) for address in range(128) ]
 p=dial_lock(actions)
 run(p, scene.LANDSCAPE,show_fps=True)

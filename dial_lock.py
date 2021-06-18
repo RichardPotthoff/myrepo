@@ -91,8 +91,12 @@ class StateTable(scene.ShapeNode):
     self.state_=state
     self.updateState()
   def updateState(self):
+    maxit=7
     while self.state_ != self.data[(int(self.phase_)<<7)|self.state_]&0x7f:
       self.state_=self.data[(int(self.phase)<<7)|self.state_]&0x7f
+      maxit-=1
+      if not maxit:
+        break
     self.statebox.position=self.cells[(int(self.phase_)<<7)|self.state_].position
     self.stateLabel.text='State:{0:3d}, Phase:{1:02b}, Data:{2:08b}'.format(self.state,intToGray(int(self.phase)),intToGray(self.data_out))
   @property
@@ -117,6 +121,7 @@ class dial(scene.Node):
     p.add_arc(0,0,r1,ang1/2,0,False)
     p.close()   
     rcorr=(cos(ang1/2)*r1+r2)/2
+    rcorr=0.0
     for i in range(self.n//4):
       ang=(4*i+3)*(2*pi/n)
       flag=ShapeNode(p)
@@ -124,6 +129,7 @@ class dial(scene.Node):
       flag.stroke_color=(0,0,0)
       flag.alpha=0.8
       flag.position=(cos(ang)*rcorr,sin(ang)*rcorr)
+      flag.anchor_point=(0.0,0.5)
       flag.rotation=ang
       self.add_child(flag)
       self.all_flags.append(flag)
@@ -142,10 +148,12 @@ class dial(scene.Node):
     
 def frac(x):
   return x-int(x)
+  
 class dial_lock (Scene):
-  def __init__(self,data,**args):
+  def __init__(self,data,initial_state=0,**args):
     Scene.__init__(self,**args)
     self.data=data
+    self.initial_state=initial_state
   def setup(self):
     self.background_color=(1,1,1)
     n=32
@@ -163,6 +171,7 @@ class dial_lock (Scene):
     self.add_child(text)
     self.dial.angle=pi/16
     self.stateTable=StateTable(self.size.h,0,self.size.w-self.size.h,self.size.h,self.data)
+    self.stateTable.state=self.initial_state
     self.add_child(self.stateTable)
     
   def touch_began(self, touch):
@@ -181,11 +190,38 @@ class dial_lock (Scene):
     pass
 addressInversionMask=(1<<9)-1 
 dataInversionMask=(1<<8)-1
-#f= open('counter128.bin','rb')
-f=open('lock_L3R1L31R8L18R16.bin','rb')
-eprom=f.read()
-f.close
-actions=[extractAction(eprom,address,phase,addressInversionMask,dataInversionMask)for phase in range(4) for address in range(128) ]
-p=dial_lock(actions)
+def dcounter():
+#  f= open('counter128.bin','rb')
+#  eprom=f.read()
+#  f.close
+#  actions=[extractAction(eprom,address,phase,addressInversionMask,dataInversionMask)for phase in range(4) for address in range(128) ]
+#  actions[0]=0
+#  actions[128]=0
+#  actions[129]=0
+#  actions[127]=0
+  actions=[(i+[1,0,0,-1][(i+1+j) % 4])%128  for j in range(4) for i in range(128)]
+#  actions[127+128]=126
+#  actions[127+3*128]=127
+#  actions[126+1*128]=126
+#  actions[126+2*128]=127
+  def skip():
+    actions[126+2*128]=125
+    actions[126+0*128]=126 
+    actions[125+2*128]=125
+    actions[125+3*128]=126
+    actions[4]=3
+    actions[4+128]=5
+    actions[4+2*128]=4
+    actions[4+3*128]=4
+  return dial_lock(actions,initial_state=122)
+  
+def dlock():
+  f=open('lock_L3R1L31R8L18R16.bin','rb')
+  eprom=f.read()
+  f.close
+  actions=[extractAction(eprom,address,phase,addressInversionMask,dataInversionMask)for phase in range(4) for address in range(128) ]
+  return dial_lock(actions,initial_state=0)
+#p=dlock()  
+p=dcounter()
 run(p, scene.LANDSCAPE,show_fps=True)
 

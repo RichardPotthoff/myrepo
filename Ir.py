@@ -2,7 +2,7 @@
 # if the correct code is received.
 # This example is for a controller that sends a NEC IR transmission frame (start bit, address(8 bit),~address,command(8 bit),~command). The 'address' value is always 0. Other values for 'address' may not synchronize properly, and a separate R/C circuit may be required to generate a reset signal from the start bit. In the current implementation, the start bit is detected as a regular '1', and the 8 following '0' bits from the 'address' guarantee synchronization. 
 #
-#Hardware implementation:
+#Hardware implementatione:
 #IC1: Eprom 27c256
 #IC2: 1838 Ir receiver
 #C1: 0.1uF*
@@ -156,7 +156,21 @@ def generate_pw(bytecode=d3['BTN_0']):
   yield(2300)
   yield(580)
 
-
+def generate_pw_a(bytecode=d3['BTN_0']):
+  yield(0)
+  yield(8900)
+  yield(4600)
+  code= 0|(0^0xff)<<8|(bytecode^0xff)<<24|bytecode<<16
+  for i in range(32):
+    yield(580)
+    yield(580*[1,3][code&1])
+    code>>=1
+  yield(580)
+  yield(40000)
+  yield(8900)
+  yield(2300)
+  yield(580)
+  
 assert sum([x^byteToCode(y)[0] for k in d2 for x,y in ((d2[k],d3[k]),)])==0
   
 def bitAtPos(x,i):
@@ -375,7 +389,7 @@ class IrRemote(scene.Scene):
     j=round(-(touch.location[1]-self.size.h/2)/self.dy+3)
     if i>=0 and i<3 and j>=0 and j<7:
 #       print('{:>17s} {:2d}'.format(*list(d3.items())[j*3+i]))
-       self.statustext.text='Code: {1:02d} ( {2:s} )'.format(*(list(d3.items())[j*3+i]+(self.texts[j][i],)))
+       self.statustext.text='Code: {1:02d} ( {1:08b} ) "{2:s}"'.format(*(list(d3.items())[j*3+i]+(self.texts[j][i],)))
        p=scene.ui.Path()
        p.move_to(0,20)
        for a in [(t*6000,(1-y)*20) for t,y in gen_pwl(generate_pw((list(d3.items())[j*3+i][1]))) if t<0.08]:

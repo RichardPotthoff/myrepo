@@ -25,10 +25,13 @@ class MyScene (Scene):
             self.sprite = SpriteNode('test:Ruler', size=(min(self.size),min(self.size)),parent=self)
             self.sprite.shader = Shader(distortion_shader)
             self.did_change_size()
+            self.framecount=0
+            self.Label= LabelNode(f'{self.framecount}',position=(100,100),size=(200,50),parent=self)
+            self.bits= [SpriteNode(size=(32,32),position=(32,48*i+24),parent=self) for i in range(16)]
 
     def did_change_size(self):
             # Center the image:
-            self.sprite.position = self.size/2
+            self.sprite.position = self.size - self.sprite.size/2
             self.sprite.shader.set_uniform('u_r',0.1)
             self.sprite.shader.set_uniform('u_a',2.0)
 
@@ -37,10 +40,16 @@ class MyScene (Scene):
 
     def touch_moved(self, touch):
             self.set_ripple_center(touch)
+    def update(self):
+      for i,sn in enumerate(self.bits):
+        sn.color=('black','white')[(self.framecount>>i)&1]
+      
+      self.Label.text=f'{self.framecount}'
+      self.framecount+=1
 
     def set_ripple_center(self, touch):
             # Center the ripple effect on the touch location by setting the `u_offset` shader uniform:
             dx, dy = touch.location-self.sprite.position
             self.sprite.shader.set_uniform('u_offset', (dx/self.sprite.size.x, dy/self.sprite.size.y))
-
-run(MyScene(),show_fps=True)
+S=MyScene()
+run(S,show_fps=True)
