@@ -9,6 +9,63 @@ if on_ipad:
 
 import operator
 from collections import namedtuple
+
+Angle=namedtuple('Angle','cos, sin')
+Point=namedtuple('Point','x, y')
+
+def cossin(x):
+  return Angle(cos(x),sin(x))
+
+class Segment(namedtuple('Segment','l, ang')):
+  def __new__ (cls, l, ang=0):
+    return super(Segment, cls).__new__(cls, l,ang)
+  def __init__(self,l,ang=0):
+    self._endpoint=Point(l,0)
+    self._csang=cossin(ang)
+  @property
+  def csang(self):
+    return self._csang
+  @property
+  def endpoint(self):
+    return self._endpoint
+    
+class ArcSegment(Segment):
+  def __init__(self,l,ang):
+    super().__init__(l,ang)
+    if ang!=0:
+      secang=halfangle(self._csang)
+      lsec=2*secang.sin*l/ang
+      self._endpoint=Point(lsec*secang.cos,lsec*secang.sin)
+
+  
+    
+def findIndex(x,xi):
+  i0=0
+  i2=len(xi)
+  while True:
+    if (i2-i0)<=1:
+      return i2 if x>xi[i0] else i0
+    i=(i0+i2)//2
+    if x>xi[i]:
+      i0=i
+    else:
+      i2=i
+      
+def interp(x,xi,fi,extrapolate=False):
+  i=findIndex(x,xi)
+  if i<=0:
+    if extrapolate:
+      i=1
+    else:
+      return fi[0]
+  elif i>=len(xi):
+    if extrapolate:
+      i=len(xi)-1
+    else:
+      return fi[len(xi)-1]
+  return fi[i-1]+(fi[i]-fi[i-1])/(xi[i]-xi[i-1])*(x-xi[i-1])
+    
+
 class Position(list):
   def __init__(self,x,y,z):
     super().__init__([x,y,z])
@@ -16,6 +73,88 @@ class Position(list):
     return self[{'x':0,'y':1,'z':2}[attr]]
   def __setattr__(self,attr,value):
     self[{'x':0,'y':1,'z':2}[attr]]=value
+Position=namedtuple('Position','x, y, z')    
+
+def addPoints(p1,p2):
+  return Point(p1.x+p2.x,p1.y+p2.y)
+
+def addAngles(a,b):
+  return Angle(*rotate(a,b))
+
+  
+class SegmentList_(Segment):
+  def __new__ (cls, list):
+    len=sum(s.l for s in list)
+    ang=sum(s.ang for s in list)
+    return super(SegmentList_, cls).__new__(cls, len,ang)
+  def __init__(self,list):
+    self._list=list
+    self._ls=[None]*len(list)
+    self._angs=[None]*len(list)
+    self._endpoints=[None]*len(list)
+    self._csangs=[None]*len(list)
+    l=0
+    ang=0
+    endpoint=Point(0,0)
+    csang=Angle(1,0)
+    for i,s in enumerate(list):
+      super().__init__(self.l,self.ang)
+      l+=s.l
+      ang+=s.ang
+      endpoint=addPoints(endpoint,rotate(s.endpoint,csang))
+      csang=addAngles(csang,s.csang)
+      self._ls[i]=l
+      self._angs[i]=ang
+      self._endpoints[i]=endpoint
+      self._csangs[i]=csang
+    self._endpoint=endpoint
+    
+    
+
+class SegmentList(list):
+  def __init__(self):
+    self._l=[0]
+    self._csang=[Angle(1,0)]
+    self._ang=[0]
+    self._p=[(0,0)]
+  def addArc(self,l=None,ang=None,r=None):
+    if ang==None:
+      ang=l/r
+    if l==None:
+      l=r*ang
+    self._l.append(self._l[-1]+l)
+    csang=cossin(ang)
+    cshalfang=halfangle(csang)
+    lsec=l if ang==0 else 2*cshalfang.sin*l/ang
+    secang=sumangles(cshalfang,self._csang[-1])
+    self._p.append((self._p[-1][0]+lsec*secang.cos,self._p[-1][1]+lsec*secang.sin))
+    self._csang.append(sumangles(csang,self._csang[-1]))
+    self._ang.append(self._ang[-1]+ang)
+    
+
+  def addLine(self,l):
+    self.addArc(l,ang=0)   
+  @property
+  def length(self):
+    return self._l[-1]
+  def coord(self,l,offset=0):
+    i=findIndex(l,self._l)
+    i=max(i,1)
+    i=min(i,len(self._l)-1)
+    dl=l-self._l[i-1]
+    dang=(self._ang[i]-self._ang[i-1])/(self._l[i]-self._l[i-1])*dl
+    csdang=cossin(dang)
+    cspang=sumangles(csdang,self._csang[i-1])
+    cshalfdang=halfangle(csdang)
+    if dang==0:
+      lsec=dl
+      secang=self._csang[i]
+    else:
+      lsec=2*cshalfdang.sin*dl/dang
+      secang=sumangles(cshalfdang,self._csang[i-1])
+    return (self._p[i-1][0]+lsec*secang.cos-offset*cspang.sin,self._p[i-1][1]+lsec*secang.sin+offset*cspang.cos)
+
+    
     
 class Position_h_w(list):
   _attrindex={'x':0,'y':1,'z':2,'h':3,'w':4}
@@ -36,7 +175,7 @@ class Position_h_w(list):
       
   def flatten(self):
     return [*self[0],*self[1:]]
-
+Position_h_w=namedtuple('Position_h_w','x, y, z, h, w')    
 class Printer():
   def __init__(self,origin=Position(x=0,y=0,z=0),defaultExtrusionHeight=None,defaultExtrusionWidth=None):   
     self.defaultExtrusionHeight=defaultExtrusionHeight
@@ -73,11 +212,11 @@ class LogPrinter(Printer):
     
   def extrudeto(self,p,extrusionHeight=None,extrusionWidth=None):
     if not self.currentPath:
-      self.currentPath=[Position_h_w(self.currentPosition,self.currentExtrusionHeight or extrusionHeight or self.defaultExtrusionHeight,self.currentExtrusionWidth or extrusionWidth or self.defaultExtrusionwidth)]
+      self.currentPath=[Position_h_w(*self.currentPosition,self.currentExtrusionHeight or extrusionHeight or self.defaultExtrusionHeight,self.currentExtrusionWidth or extrusionWidth or self.defaultExtrusionwidth)]
       self.paths.append(self.currentPath)
-      print('start new path',self.currentPath)
+#      print('start new path',self.currentPath)
 #    print('extrudeto',p)
-    self.currentPath.append(Position_h_w(p,extrusionHeight or self.currentExtrusionHeight or self.defaultExtrusionHeight, extrusionWidth or self.currentExtrusionWidth or self.defaultExtrusionWidth) )
+    self.currentPath.append(Position_h_w(*p,extrusionHeight or self.currentExtrusionHeight or self.defaultExtrusionHeight, extrusionWidth or self.currentExtrusionWidth or self.defaultExtrusionWidth) )
     self.currentExtrusionHeight=extrusionHeight
     self.currentExtrusionwidth=extrusionWidth
     self.currentPosition=p
@@ -107,7 +246,7 @@ def show_plot():
 #  def __init__(self,l,ang):
 #    self.l=l
 #    self.ang=ang
-Segment=namedtuple('Segment','l, ang')
+
 Brick=namedtuple('Brick','offset, width')
  
 class Bricklayer(list):
@@ -119,21 +258,20 @@ class ExtrusionCrosssection(list):
     super().__init__(args)
     
 def sumangles(a,b):
-  return rotate(a,b)
+  return Angle(*rotate(a,b))
+  
 def rotate(v,a):
-  return(a[0]*v[0]-a[1]*v[1],a[1]*v[0]+a[0]*v[1])
+  return Point(a[0]*v[0]-a[1]*v[1],a[1]*v[0]+a[0]*v[1])
 
 def doubleangle(a):
   return sumangles(a,a)
   
 def halfangle(a):
-  return (sqrt(0.5+a[0]/2.0),(1.0 if(a[1]>0) else -1.0)* sqrt(0.5-a[0]/2.0))
+  return Angle(sqrt(0.5+a[0]/2.0),(1.0 if(a[1]>0) else -1.0)* sqrt(0.5-a[0]/2.0))
   
-def cossin(x):
-  return (cos(x),sin(x))
   
 def angle(cs):
-  return atan2(cs[1],cs[0])
+  return atan2(cs.sin,cs.cos)
   
 n=50
 pi2=pi*2
@@ -611,27 +749,57 @@ def  plot_():
       w_layer=w_blade_bottom+(w_blade_top-w_blade_bottom)*(z-0.5*h_layer)/h_blade
       plot_box(5.5*i-o,z+n_flange*dz,w_layer,h_layer,"g")
   show_plot()
-
+  
+def test_path():
+  plt.close()
+  p=SegmentList()
+  pent=[ArcSegment(0.5,4*pi/5),Segment(1)]*5
+  for s in pent:
+    p.addArc(*s)
+  ltot=p.length
+  n=200
+  for o in (-0.1,0,0.1):
+    p1=[p.coord(l,o) for i in range(n+1) for l in (ltot/n*i,)]
+    plt.plot(*zip(*p1))
+  x=SegmentList_([ArcSegment(*s) for s in pent])
+  plt.plot(*zip(*x._endpoints))
+  show_plot()
+  
 if on_ipad:
   printer=LogPrinter()
   p2d,vn=(np.array(A) for A in SegmentsToPolyline(Segments,lstart=-40))
-  l=p2d[-1,2]
   dz=0.2
+  z=0
+  p2d0=np.concatenate((p2d[:,:2],np.zeros((p2d.shape[0],1))),axis=1)
+  vn0=np.concatenate((vn,np.zeros((p2d.shape[0],1))),axis=1)
+  for i,bricklayer in enumerate(crosssection):
+    z+=dz
+    if len(bricklayer)>1:
+      for brick in bricklayer:
+        printer.extrudePolygon(p2d0+[[0,0,z]]+brick.offset*vn0, extrusionWidth=brick.width,extrusionHeight=dz)
+    else:
+      n_flange=i
+      break
+  l=p2d[-1,2]
   p3d=np.concatenate((p2d[:,:2],p2d[:,2:]*dz/l),axis=1)
   n3d=np.concatenate((vn,np.zeros((vn.shape[0],1))),axis=1)
-  n=50
-  zmax=dz*n
-  ptot=np.concatenate(list(p3d+[0,0,dz*i] for i in range(n+1)),axis=0)
-  ntot=np.concatenate(list(n3d for i in range(n+1)),axis=0)
+  n_top=len(crosssection)
+  zmax=dz*n_top
+  z_flange=dz*n_flange
+  ptot=np.concatenate(list(p3d+[0,0,dz*i] for i in range(n_flange,n_top+1)),axis=0)
+  ntot=np.concatenate(list(n3d for i in range(n_flange,n_top+1)),axis=0)
   dztot=np.minimum(ptot[:,2:],zmax)-np.maximum(ptot[:,2:]-dz,0)
   ptot[ptot[:,2] > zmax ,2]=zmax  
-  ptot_bottom=ptot-[0,0,1]*dztot
-  offset=2-0.1*ptot[:,2:]
-  ptot_offset=ptot-ntot*offset
+#  ptot_bottom=ptot-[0,0,1]*dztot
   dp2d=np.sum((p2d[:,:-1]-np.roll(p2d[:,:-1],-1,axis=0))**2,1)**0.5
-  printer.extrudePolygon(ptot,extrusionWidth=0.5,extrusionHeight=0.2)
-  printer.extrudePolygon(ptot_bottom,extrusionWidth=0.5,extrusionHeight=0.2)
+  def f_o_w(z):
+    o=np.interp(z,dz*np.arange(n_flange+1,len(crosssection)+0.5),[b.offset for [b]in crosssection[n_flange:]])
+    w=np.interp(z,dz*np.arange(n_flange+1,len(crosssection)+0.5),[b.width for [b] in crosssection[n_flange:]])
+    return o,w  
+  otot,wtot=f_o_w(ptot[:,2:])
+  ptot_offset=ptot+ntot*otot
   printer.extrudePolygon(ptot_offset,extrusionWidth=0.5,extrusionHeight=0.2)
+#  printer.extrudePolygon(ptot_offset,extrusionWidth=0.5,extrusionHeight=0.2)
   t=np.array([p for path in printer.paths for *p,w,h in path ]) 
 #  fig = plt.figure()
 #  ax = plt.axes(projection='3d')
