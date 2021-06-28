@@ -1,6 +1,7 @@
 import os
 import socket
 from math import acos,pi,sin,cos,sqrt
+import cmath
 import numpy as np
 on_ipad=socket.gethostname()=="iPad"
 if on_ipad:
@@ -11,7 +12,48 @@ import operator
 from collections import namedtuple
 
 Angle=namedtuple('Angle','cos, sin')
+class Angle(complex):
+   def __new__(cls,cos_phi=None,sin=None,phi=None,cos=None):
+     if sin==None:
+       if hasattr(cos_phi,'__getitem__'):
+         return super(Angle,cls).__new__(cls,*cos_phi)
+       else:
+         if issubclass(cos_phi.__class__,complex):
+           return super(Angle,cls).__new__(cls,cos_phi)
+         else: 
+           return super(Angle,cls).__new__(cls,(-1)**((phi or cos_phi)/pi))
+     return super(Angle,cls).__new__(cls,((cos or cos_phi)+1j*sin))
+   @property
+   def sin(self):
+     return self.imag
+   @property
+   def cos(self):
+     return self.real
+   @property
+   def xy(self):
+     return (self.real,self.imag)
+   @property
+   def rphi(self):
+     return
+
 Point=namedtuple('Point','x, y')
+class Point(complex):
+   def __new__(cls,x_p,y=None,x=None):
+     if y==None:
+       return super(Point,cls).__new__(cls,x_p)
+     return super(Point,cls).__new__(cls,(x or x_p)+1j*y)
+   @property
+   def x(self):
+     return self.real
+   @property
+   def y(self):
+     return self.imag
+   @property
+   def xy(self):
+     return (self.real,self.imag)
+   @property
+   def rphi(self):
+     return
 
 def cossin(x):
   return Angle(cos(x),sin(x))
@@ -75,11 +117,11 @@ class Position(list):
     self[{'x':0,'y':1,'z':2}[attr]]=value
 Position=namedtuple('Position','x, y, z')    
 
-def addPoints(p1,p2):
-  return Point(p1.x+p2.x,p1.y+p2.y)
+def shiftPoint(p,offset):
+  return Point(p.x+offset.x,p.y+offset.y)
 
 def addAngles(a,b):
-  return Angle(*rotate(a,b))
+  return Angle(a*b)
 
   
 class SegmentList_(Segment):
@@ -101,7 +143,7 @@ class SegmentList_(Segment):
       super().__init__(self.l,self.ang)
       l+=s.l
       ang+=s.ang
-      endpoint=addPoints(endpoint,rotate(s.endpoint,csang))
+      endpoint=shiftPoint(endpoint,rotate(s.endpoint,csang))
       csang=addAngles(csang,s.csang)
       self._ls[i]=l
       self._angs[i]=ang
@@ -258,16 +300,18 @@ class ExtrusionCrosssection(list):
     super().__init__(args)
     
 def sumangles(a,b):
-  return Angle(*rotate(a,b))
+  return Angle(a*b)
   
 def rotate(v,a):
-  return Point(a[0]*v[0]-a[1]*v[1],a[1]*v[0]+a[0]*v[1])
+  return Point(a*v)
 
 def doubleangle(a):
   return sumangles(a,a)
   
 def halfangle(a):
-  return Angle(sqrt(0.5+a[0]/2.0),(1.0 if(a[1]>0) else -1.0)* sqrt(0.5-a[0]/2.0))
+  return Angle(cmath.sqrt(a))
+#def halfangle(a):
+#  return Angle(sqrt(0.5+a.cos/2.0),(1.0 if(a.sin>0) else -1.0)* sqrt(0.5-a.cos/2.0))  
   
   
 def angle(cs):
@@ -337,8 +381,8 @@ for i in range(n):
           Segment(0.8,-a/180*pi),
           Segment(2.0,0.0)]
 
-def SegmentsToPolyline(Segments,a=(1.0,0.0),p=(0.0,0.0),o=0.0,damax=pi/4,maxdev=0.01,lstart=0.0,lend=None):
-  p=list(map(operator.add,p,rotate((0.0,o),a)))
+def SegmentsToPolyline(Segments, a=Angle(0), p=Point(0.0,0.0), o=0.0, damax=pi/4, maxdev=0.01, lstart=0.0,lend=None):
+  p+=rotate(Point(0.0,o),a)
   t2=[]
   vn=[]
   ltot=pathLength(Segments)
@@ -367,9 +411,8 @@ def SegmentsToPolyline(Segments,a=(1.0,0.0),p=(0.0,0.0),o=0.0,damax=pi/4,maxdev=
     if s.ang!=0:
       r=abs(float(s.l)/s.ang)
       if maxdev<r:
-        maxang=2.0*acos(1.0-maxdev/r)
+        maxang=(2.0*acos(1.0-maxdev/r)).real
         n=int(round(abs(s.ang)/maxang+0.5))
-#            print "ndev=%d,r=%f,maxdev=%f,s.ang=%f,maxang=%f"%(n,r,maxdev,s.ang,maxang)
       else:
         n=1
       da=s.ang/n
@@ -378,15 +421,15 @@ def SegmentsToPolyline(Segments,a=(1.0,0.0),p=(0.0,0.0),o=0.0,damax=pi/4,maxdev=
         da=s.ang/n
       da1=cossin(da)
       da2=halfangle(da1)
-      dl=rotate(((float(s.l)-o*s.ang)/n*da2[1]/(da/2.0),0),da2)
+      dl=rotate(Point((float(s.l)-o*s.ang)/n*da2.sin/(da/2.0),0),da2)
     else:
       n=1
       da=0
-      da1=(1.0,0.0)
-      dl=(float(s.l),0.0)
+      da1=Angle(1.0,0.0)
+      dl=Point(float(s.l),0.0)
     true_dl=float(s.l)/n
 #        print "n=",n
-    vnormal=(0,1)
+    vnormal=Angle(0,1)
     dl=rotate(dl,a)
     vnormal=rotate(vnormal,a)
     for i in range(n):
@@ -395,29 +438,30 @@ def SegmentsToPolyline(Segments,a=(1.0,0.0),p=(0.0,0.0),o=0.0,damax=pi/4,maxdev=
         if l>lstart:
           startfound=True
           dlfraction=1.0-(l-lstart)/true_dl
-          t2.append((p[0]+dlfraction*dl[0],p[1]+dlfraction*dl[1],0.0))
+          t2.append((Point(p+dlfraction*dl),0.0))
           vn.append(vnormal)
-      p=(p[0]+dl[0],p[1]+dl[1],l-lstart)
+      p+=dl
+      ll=l-lstart
       if startfound:
         if l>lend:
           dlfraction=-(l-lend)/true_dl
-          t2.append((p[0]+dlfraction*dl[0],p[1]+dlfraction*dl[1],lend-lstart))
+          t2.append((Point(p+dlfraction*dl),lend-lstart))
           vn.append(vnormal)
           break
         else:
-          t2.append(p)
+          t2.append((Point(p),ll))
           vn.append(vnormal)
       dl=rotate(dl,da1)
       vnormal=rotate(vnormal,da1)
       
-    a=rotate(a,cossin(s.ang))
+    a=rotate(a,Angle(s.ang))
     iSegment+=1
     if iSegment>=nSegments:
       iSegment-=nSegments
 #   print angle(a)*180/pi,p
 #    print l
   if reverse:
-    return reversed(t2),([(-x,-y) for x,y in reversed(vn)])
+    return reversed(t2),([-p for p in reversed(vn)])
   else:
     return t2,vn
     
@@ -428,16 +472,16 @@ def pathLength(Segments):
   return result
   
 def minmaxxy(t):
-  p=t[0]
-  maxx=p[0]
+  p,l=t[0]
+  maxx=p.x
   minx=maxx
-  maxy=p[1]
+  maxy=p.y
   miny=maxy
-  for p in t[1:]:
-    maxx=max(maxx,p[0])
-    minx=min(minx,p[0])
-    maxy=max(maxy,p[1])
-    miny=min(miny,p[1])
+  for p,l in t[1:]:
+    maxx=max(maxx,p.x)
+    minx=min(minx,p.x)
+    maxy=max(maxy,p.y)
+    miny=min(miny,p.y)
   return (minx,maxx,miny,maxy)
   
 def fill(minx,maxx,n):
@@ -455,7 +499,7 @@ def fill(minx,maxx,n):
 def skirt(polyline,r=3,d=3):
   xmin,xmax,ymin,ymax=minmaxxy(polyline)
   dx,dy=xmax-xmin,ymax-ymin
-  return((xmin-d,ymin-d-r),(Segment(dx+d*2,0),Segment(r*pi/2,pi/2),\
+  return(Point(xmin-d,ymin-d-r),(Segment(dx+d*2,0),Segment(r*pi/2,pi/2),\
                       Segment(dy+d*2,0),Segment(r*pi/2,pi/2),\
                       Segment(dx+d*2,0),Segment(r*pi/2,pi/2),\
                       Segment(dy+d*2,0),Segment(r*pi/2,pi/2)))
@@ -467,25 +511,25 @@ def mirrorPath(path):
   return[Segment(s.l,-s.ang)for s in path]
   
 def crossProduct(v1,v2):
-  return(v1[0]*v2[1]-v2[0]*v1[1])
+  return(v1.x*v2.y-v2.x*v1.y)
   
 def vectorSum(v1,v2):
-  return(list(map(operator.add,v1,v2)))
+  return Point(v1+v2)
   
 def pathArea(path):
   areaSum=0.0
-  currentAngle=[1.0,0.0]
-  currentCoordinate=[0.0,0.0]
+  currentAngle=Angle(0)
+  currentCoordinate=Point(0.0,0.0)
   for Segment in path:
-    deltaAngle=cossin(Segment.ang)
+    deltaAngle=Angle(Segment.ang)
     halfDeltaAngle=halfangle(deltaAngle)
     if Segment.ang!=0.0:
-      secantLength=Segment.l*halfDeltaAngle[1]/(0.5*Segment.ang)
-      circleSectionArea=(float(Segment.l)/Segment.ang)**2*(Segment.ang/2.0-halfDeltaAngle[0]*halfDeltaAngle[1])
+      secantLength=Segment.l*halfDeltaAngle.sin/(0.5*Segment.ang)
+      circleSectionArea=(float(Segment.l)/Segment.ang)**2*(Segment.ang/2.0-halfDeltaAngle.cos*halfDeltaAngle.sin)
     else:
       secantLength=Segment.l
       circleSectionArea=0.0
-    deltaCoordinate=rotate((secantLength,0.0),sumangles(currentAngle,halfDeltaAngle))
+    deltaCoordinate=rotate(Point(secantLength,0.0),sumangles(currentAngle,halfDeltaAngle))
     triangleArea=0.5*crossProduct(currentCoordinate,deltaCoordinate)
     areaSum+=triangleArea+circleSectionArea
 #    print "circleSection",circleSectionArea
@@ -495,24 +539,24 @@ def pathArea(path):
 
 def normalizePath(path,p0,area):
   actualarea=pathArea(path)
-  rotang=(1.0,0.0)
+  rotang=Angle(1.0,0.0)
   if actualarea<0:
     path=mirrorPath(reversed(path))
     actualarea*=-1
-    rotang=rotate(rotang,(-1.0,0.0))
+    rotang=addAngles(rotang,Angle(-1.0,0.0))
   scale=sqrt(area/actualarea)
   xmin,xmax,ymin,ymax=minmaxxy(SegmentsToPolyline(path)[0])
   dx=xmax-xmin
   dy=ymax-ymin
   if dx>dy:
-    rotang=rotate(rotang,(0.0,1.0))
+    rotang=addAngles(rotang,Angle(0.0,1.0))
   path=scalePath(path,scale)
   xmin,xmax,ymin,ymax=minmaxxy(SegmentsToPolyline(path,a=rotang)[0])
   dx=xmax-xmin
   dy=ymax-ymin
-  return vectorSum(p0,(-(xmin+dx/2.0),-(ymin+dy/2.0))),rotang,path
+  return vectorSum(p0,Point(-(xmin+dx/2.0),-(ymin+dy/2.0))),rotang,path
 
-p0,a,Segments=normalizePath((tSegments,dSegments,eSegments,sSegments,hSegments,cSegments)[cookiecutterindex],p0=(100,100),area=2000.0)
+p0,a,Segments=normalizePath((tSegments,dSegments,eSegments,sSegments,hSegments,cSegments)[cookiecutterindex],p0=Point(100,100),area=2000.0)
 
 t2=[]#SegmentsToPolyline(Segments,p=p0,a=a)
 for o in range(1):
@@ -587,12 +631,14 @@ lastspeed=1e10
 
 def extrudePolyline(output,t,speed=None,extrusion_ratio=None,z=None):
   global lastx,lasty,lastz,laste,lastspeed
-  x,y,l=t[0]
+  p,l=t[0]
+  x,y=p.xy
   if (abs(x-lastx)>eps) or (abs(y-lasty)>eps) or (abs(z-lastz)>eps):
 #       print "xyz,lastxyz",x,y,z,lastx,lasty,lastz,lastx==x,lasty==y,lastz==z
     output.write("G1 X%(X)0.3f Y%(Y)0.3f Z%(Z)0.3f F%(F)0.3f\n"%{"X":x,"Y":y,"Z":z,"F":travel_speed*60})
     lastx,lasty,lastz,lastspeed=x,y,z,travel_speed
-  for x,y,l in t[1:]:
+  for p,l in t[1:]:
+    x,y=p.xy
     output.write("G1 X%(X)0.3f Y%(Y)0.3f E%(E)0.5f"%{"X":x,"Y":y,"E":laste+l*extrusion_ratio})
     if speed!=lastspeed:
       output.write(" F%(F)0.3f\n"%{"F":speed*60})
@@ -600,7 +646,7 @@ def extrudePolyline(output,t,speed=None,extrusion_ratio=None,z=None):
     else:
       output.write("\n")
     lastx,lasty=x,y
-  laste+=t[-1][2]*extrusion_ratio
+  laste+=t[-1][1]*extrusion_ratio
   return
 
 def extrudePath(output,path,p0,o,a,lstart,speed,\
@@ -679,7 +725,7 @@ dlstart=2.5*retract_perimeter_length
 
 for i in range(-1,2,1):
   extrudePath(output,skirtSegments,speed=perimeter_speed*first_layer_speed_ratio,\
-                    p0=pskirt0,a=(1.0,0.0),o=i*0.75,lstart=lstart,
+                    p0=pskirt0,a=Angle(1.0,0.0),o=i*0.75,lstart=lstart,
                     extrusion_width=0.75,layer_height=layer_height,z=z)
   lstart+=dlstart
 speed_ratio=first_layer_speed_ratio
@@ -727,7 +773,7 @@ def fminExtrusionWidth(nozzleDiameter,layerHeight):
   return(minExtrusionWidth)
   
 def  plot_():
-  plt.plot([p[0] for p in t2],[p[1] for p in t2])
+  plt.plot([p.x for p,l in t2],[p.y for p,l in t2])
   show_plot()
   dz=0.2
   h_blade=(len(crosssection)-n_flange)*dz
@@ -753,21 +799,24 @@ def  plot_():
 def test_path():
   plt.close()
   p=SegmentList()
-  pent=[ArcSegment(0.5,4*pi/5),Segment(1)]*5
+  n=11
+  pent=[ArcSegment(1,1.11*pi/2+0.1), ArcSegment(1.75,4*pi/n-0.2), ArcSegment(1,1.11*pi/2+0.1), Segment(1.3),ArcSegment(1,-1.11*pi),Segment(1.3)]*n
   for s in pent:
     p.addArc(*s)
   ltot=p.length
-  n=200
-  for o in (-0.1,0,0.1):
+  n=800
+  for o in (-0.05,0,0.05):
     p1=[p.coord(l,o) for i in range(n+1) for l in (ltot/n*i,)]
     plt.plot(*zip(*p1))
   x=SegmentList_([ArcSegment(*s) for s in pent])
-  plt.plot(*zip(*x._endpoints))
+  plt.plot(*zip(p.xy for p in x._endpoints))
   show_plot()
   
 if on_ipad:
   printer=LogPrinter()
-  p2d,vn=(np.array(A) for A in SegmentsToPolyline(Segments,lstart=-40))
+  p2d,vn=SegmentsToPolyline(Segments,lstart=-40)
+  vn=np.array([p.xy for p in vn])
+  p2d=np.array([(*p.xy,l) for p,l in p2d])
   dz=0.2
   z=0
   p2d0=np.concatenate((p2d[:,:2],np.zeros((p2d.shape[0],1))),axis=1)
@@ -802,7 +851,7 @@ if on_ipad:
 #  printer.extrudePolygon(ptot_offset,extrusionWidth=0.5,extrusionHeight=0.2)
   t=np.array([p for path in printer.paths for *p,w,h in path ]) 
 #  fig = plt.figure()
-#  ax = plt.axes(projection='3d')
+#  ax = plt.axes(projection='3d')p
   plt.close()
   fig = plt.figure()
   ax = fig.gca(projection='3d')
