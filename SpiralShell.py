@@ -11,37 +11,37 @@ if on_ipad:
 import operator
 from collections import namedtuple
 
-Angle=namedtuple('Angle','cos, sin')
 class Angle(complex):
    def __new__(cls,cos_phi=None,sin=None,phi=None,cos=None):
      if sin==None:
        if hasattr(cos_phi,'__getitem__'):
          return super(Angle,cls).__new__(cls,*cos_phi)
-       else:
-         if issubclass(cos_phi.__class__,complex):
+       elif issubclass(cos_phi.__class__,complex):
            return super(Angle,cls).__new__(cls,cos_phi)
-         else: 
-           return super(Angle,cls).__new__(cls,(-1)**((phi or cos_phi)/pi))
-     return super(Angle,cls).__new__(cls,((cos or cos_phi)+1j*sin))
-   @property
-   def sin(self):
-     return self.imag
+       else: 
+           return super(Angle,cls).__new__(cls,cmath.rect(1,cos_phi if cos_phi!=None else phi))
+     return super(Angle,cls).__new__(cls,cos_phi if cos_phi!=None else cos,sin)
    @property
    def cos(self):
      return self.real
    @property
-   def xy(self):
+   def sin(self):
+     return self.imag
+   @property
+   def cossin(self):
      return (self.real,self.imag)
    @property
-   def rphi(self):
-     return
+   def phi(self):
+     return cmath.phase(self)
 
-Point=namedtuple('Point','x, y')
 class Point(complex):
    def __new__(cls,x_p,y=None,x=None):
      if y==None:
-       return super(Point,cls).__new__(cls,x_p)
-     return super(Point,cls).__new__(cls,(x or x_p)+1j*y)
+       if hasattr(x_p,'__getitem__'):
+         return super(Point,cls).__new__(cls,*x_p)
+       elif issubclass(x_p.__class__,complex):
+           return super(Point,cls).__new__(cls,x_p)
+     return super(Point,cls).__new__(cls,(x_p if x_p != None else x),y)
    @property
    def x(self):
      return self.real
@@ -53,23 +53,27 @@ class Point(complex):
      return (self.real,self.imag)
    @property
    def rphi(self):
-     return
+     return cmath.polar(self)
 
-def cossin(x):
-  return Angle(cos(x),sin(x))
+#def cossin(x):
+#  return Angle(cos(x),sin(x))
 
 class Segment(namedtuple('Segment','l, ang')):
   def __new__ (cls, l, ang=0):
     return super(Segment, cls).__new__(cls, l,ang)
   def __init__(self,l,ang=0):
-    self._endpoint=Point(l,0)
-    self._csang=cossin(ang)
+    self._csang=Angle(ang)
+    self._endpoint=rotate(Point(l,0),self._csang)
+    self._A=0
   @property
   def csang(self):
     return self._csang
   @property
   def endpoint(self):
     return self._endpoint
+  @property
+  def A(self):
+    return self._A
     
 class ArcSegment(Segment):
   def __init__(self,l,ang):
@@ -78,8 +82,13 @@ class ArcSegment(Segment):
       secang=halfangle(self._csang)
       lsec=2*secang.sin*l/ang
       self._endpoint=Point(lsec*secang.cos,lsec*secang.sin)
+      self._A=0.5*(l*l/ang-lsec*l/ang*secang.cos)
 
-  
+def firstNotNone(*args):
+  for x in args:
+    if x!=None:
+      return x
+  return None
     
 def findIndex(x,xi):
   i0=0
@@ -115,10 +124,11 @@ class Position(list):
     return self[{'x':0,'y':1,'z':2}[attr]]
   def __setattr__(self,attr,value):
     self[{'x':0,'y':1,'z':2}[attr]]=value
+    
 Position=namedtuple('Position','x, y, z')    
 
 def shiftPoint(p,offset):
-  return Point(p.x+offset.x,p.y+offset.y)
+  return Point(p+offset)
 
 def addAngles(a,b):
   return Angle(a*b)
@@ -135,6 +145,7 @@ class SegmentList_(Segment):
     self._angs=[None]*len(list)
     self._endpoints=[None]*len(list)
     self._csangs=[None]*len(list)
+    A=0
     l=0
     ang=0
     endpoint=Point(0,0)
@@ -143,13 +154,16 @@ class SegmentList_(Segment):
       super().__init__(self.l,self.ang)
       l+=s.l
       ang+=s.ang
-      endpoint=shiftPoint(endpoint,rotate(s.endpoint,csang))
+      startpoint=endpoint
+      endpoint=shiftPoint(startpoint,rotate(s.endpoint,csang))
+      A+=s.A+crossProduct(startpoint,endpoint)/2
       csang=addAngles(csang,s.csang)
       self._ls[i]=l
       self._angs[i]=ang
       self._endpoints[i]=endpoint
       self._csangs[i]=csang
     self._endpoint=endpoint
+    self._A=A
     
     
 
@@ -165,10 +179,10 @@ class SegmentList(list):
     if l==None:
       l=r*ang
     self._l.append(self._l[-1]+l)
-    csang=cossin(ang)
+    csang=Angle(ang)
     cshalfang=halfangle(csang)
     lsec=l if ang==0 else 2*cshalfang.sin*l/ang
-    secang=sumangles(cshalfang,self._csang[-1])
+    secang=addAngles(cshalfang,self._csang[-1])
     self._p.append((self._p[-1][0]+lsec*secang.cos,self._p[-1][1]+lsec*secang.sin))
     self._csang.append(sumangles(csang,self._csang[-1]))
     self._ang.append(self._ang[-1]+ang)
@@ -185,8 +199,8 @@ class SegmentList(list):
     i=min(i,len(self._l)-1)
     dl=l-self._l[i-1]
     dang=(self._ang[i]-self._ang[i-1])/(self._l[i]-self._l[i-1])*dl
-    csdang=cossin(dang)
-    cspang=sumangles(csdang,self._csang[i-1])
+    csdang=Angle(dang)
+    cspang=addAngles(csdang,self._csang[i-1])
     cshalfdang=halfangle(csdang)
     if dang==0:
       lsec=dl
@@ -254,11 +268,11 @@ class LogPrinter(Printer):
     
   def extrudeto(self,p,extrusionHeight=None,extrusionWidth=None):
     if not self.currentPath:
-      self.currentPath=[Position_h_w(*self.currentPosition,self.currentExtrusionHeight or extrusionHeight or self.defaultExtrusionHeight,self.currentExtrusionWidth or extrusionWidth or self.defaultExtrusionwidth)]
+      self.currentPath=[Position_h_w(*self.currentPosition,firstNotNone(self.currentExtrusionHeight, extrusionHeight, self.defaultExtrusionHeight), firstNotNone(self.currentExtrusionWidth , extrusionWidth, self.defaultExtrusionWidth))]
       self.paths.append(self.currentPath)
 #      print('start new path',self.currentPath)
 #    print('extrudeto',p)
-    self.currentPath.append(Position_h_w(*p,extrusionHeight or self.currentExtrusionHeight or self.defaultExtrusionHeight, extrusionWidth or self.currentExtrusionWidth or self.defaultExtrusionWidth) )
+    self.currentPath.append(Position_h_w(*p,firstNotNone(extrusionHeight, self.currentExtrusionHeight,  self.defaultExtrusionHeight),firstNotNone(extrusionWidth, self.currentExtrusionWidth, self.defaultExtrusionWidth)) )
     self.currentExtrusionHeight=extrusionHeight
     self.currentExtrusionwidth=extrusionWidth
     self.currentPosition=p
@@ -419,7 +433,7 @@ def SegmentsToPolyline(Segments, a=Angle(0), p=Point(0.0,0.0), o=0.0, damax=pi/4
       if abs(da)>damax:
         n=int(round(abs(s.ang)/damax+0.5))
         da=s.ang/n
-      da1=cossin(da)
+      da1=Angle(da)
       da2=halfangle(da1)
       dl=rotate(Point((float(s.l)-o*s.ang)/n*da2.sin/(da/2.0),0),da2)
     else:
@@ -809,7 +823,7 @@ def test_path():
     p1=[p.coord(l,o) for i in range(n+1) for l in (ltot/n*i,)]
     plt.plot(*zip(*p1))
   x=SegmentList_([ArcSegment(*s) for s in pent])
-  plt.plot(*zip(p.xy for p in x._endpoints))
+  plt.plot(*zip(*(p.xy for p in x._endpoints)))
   show_plot()
   
 if on_ipad:
