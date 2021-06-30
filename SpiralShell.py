@@ -57,7 +57,18 @@ class Point(complex):
 
 #def cossin(x):
 #  return Angle(cos(x),sin(x))
-
+def quantize(start,end,n,eps=1e-16):
+  dx=1/n
+  sign=1 if end>start else -1
+  end*=sign
+  start*=sign
+  x=start//dx*dx
+  while True:
+    x+=dx
+    if x+eps>=end:
+      break
+    yield sign*x
+    
 class Segment(namedtuple('Segment','l, ang')):
   def __new__ (cls, l, ang=0):
     return super(Segment, cls).__new__(cls, l,ang)
@@ -74,6 +85,18 @@ class Segment(namedtuple('Segment','l, ang')):
   @property
   def A(self):
     return self._A
+  def p_x(self,x,p0=Point(0,0),rot=Angle(0)):
+    return shiftPoint(Point(x*self._endpoint*rot),p0),Angle(self._csang*1j*rot)
+  def p_l(self,l):
+    return self.p_x(l/self.l)
+  def coords(self,lstart,lend,nsample=1,p0=Point(0,0),rot=Angle(0)):
+    if (lstart<0 and lend<0) or (lstart>self.l and lend>self.l):
+       return
+    xstart=min(1,max(0,lstart/self.l))
+    xend=min(1,max(0,lend/self.l))
+    for x in quantize(xstart,xend,nsample):   
+      yield self.p_x(x,p0,rot)
+    yield self.p_x(xend,p0,rot)
     
 class ArcSegment(Segment):
   def __init__(self,l,ang):
@@ -81,8 +104,20 @@ class ArcSegment(Segment):
     if ang!=0:
       secang=halfangle(self._csang)
       lsec=2*secang.sin*l/ang
-      self._endpoint=Point(lsec*secang.cos,lsec*secang.sin)
+      self._endpoint=Point(lsec*secang)
       self._A=0.5*(l*l/ang-lsec*l/ang*secang.cos)
+  def p_x(self,x,p0=Point(0,0),rot=Angle(0)):
+    if x!=0:
+      a=self.ang*x
+      l=self.l*x
+      secang=Angle(0.5*a)
+      lsec=2*secang.sin*l/a
+      return shiftPoint(Point(lsec*secang*rot),p0),Angle(secang*secang*1j*rot)
+    else:
+      return p0,Angle(rot*1j)
+  def coords(self,lstart,lend,eps,p0=Point(0,0),rot=Angle(0)):
+    n=round(0.35355339059327*sqrt(abs(self.l*self.ang/eps)))
+    yield from super().coords(lstart,lend,n,p0,rot) 
 
 def firstNotNone(*args):
   for x in args:
@@ -164,7 +199,17 @@ class SegmentList_(Segment):
       self._csangs[i]=csang
     self._endpoint=endpoint
     self._A=A
-    
+  def coords(self,lstart=None,lend=None,eps=0.01,p0=Point(0,0),rot=Angle(0)):
+    if lstart==None: lstart=0
+    if lend==None: lend=self.l
+    l=0
+    yield p0,addAngles(rot,1j)
+    for s in self._list:
+      yield from s.coords(lstart-l,lend-l,eps,p0,rot)
+      p0=shiftPoint(p0,s.endpoint*rot)
+      rot=addAngles(rot,s._csang)
+      l+=s.l
+
     
 
 class SegmentList(list):
@@ -872,5 +917,12 @@ if on_ipad:
   for path in printer.paths:
     ax.plot3D(*np.array(path)[:,:3].transpose(), 'gray')
   plt.show()
+  plt.close()
+#  x=SegmentList_([ArcSegment(10*pi/2,pi/2),ArcSegment(10*pi/2,-pi/2)])
+  n=11
+  x=SegmentList_([ArcSegment(1,1.11*pi/2+0.1), ArcSegment(1.75,4*pi/n-0.2), ArcSegment(1,1.11*pi/2+0.1), Segment(1.3),ArcSegment(1,-1.11*pi),Segment(1.3)]*n)
+  for o in [-0.05,0,0.05]:
+    plt.plot(*zip(*(p.xy for p_,n in x.coords(eps=0.001) for p in (shiftPoint(p_,n*o),)))) 
+  show_plot()
 #  plot_()
   pass
