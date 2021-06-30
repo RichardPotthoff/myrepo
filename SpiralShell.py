@@ -57,7 +57,7 @@ class Point(complex):
 
 #def cossin(x):
 #  return Angle(cos(x),sin(x))
-def quantize(start,end,n,eps=1e-16):
+def quantize(start,end,n,eps=1e-12):
   dx=1/n
   sign=1 if end>start else -1
   end*=sign
@@ -85,18 +85,20 @@ class Segment(namedtuple('Segment','l, ang')):
   @property
   def A(self):
     return self._A
-  def p_x(self,x,p0=Point(0,0),rot=Angle(0)):
-    return shiftPoint(Point(x*self._endpoint*rot),p0),Angle(self._csang*1j*rot)
-  def p_l(self,l,p0=Point(0,0),rot=Angle(0)):
-    return self.p_x(l/self.l,p0,rot)
-  def coords(self,lstart,lend,nsample=1,p0=Point(0,0),rot=Angle(0)):
+  def p_x(self,x,p0=Point(0,0),rot=Angle(0),l0=0):
+    return shiftPoint(Point(x*self._endpoint*rot),p0),Angle(self._csang*1j*rot),l0+x*self.l
+  def p_l(self,l,p0=Point(0,0),rot=Angle(0),l0=0):
+    return self.p_x(l/self.l,p0,rot,l0=l0)
+  def coords(self,lstart,lend,n=1,p0=Point(0,0),rot=Angle(0),maxdl=None,eps=None,l0=0):
     if (lstart<0 and lend<0) or (lstart>self.l and lend>self.l):
        return
+    if maxdl!=None:
+      n=max(n,int(self.l/maxdl)+1)
     xstart=min(1,max(0,lstart/self.l))
     xend=min(1,max(0,lend/self.l))
-    for x in quantize(xstart,xend,nsample):   
-      yield self.p_x(x,p0,rot)
-    yield self.p_x(xend,p0,rot)
+    for x in quantize(xstart,xend,n):   
+      yield self.p_x(x,p0,rot,l0)
+    yield self.p_x(xend,p0,rot,l0)
     
 class ArcSegment(Segment):
   def __init__(self,l,ang):
@@ -106,18 +108,20 @@ class ArcSegment(Segment):
       lsec=2*secang.sin*l/ang
       self._endpoint=Point(lsec*secang)
       self._A=0.5*(l*l/ang-lsec*l/ang*secang.cos)
-  def p_x(self,x,p0=Point(0,0),rot=Angle(0)):
+  def p_x(self,x,p0=Point(0,0),rot=Angle(0),l0=0):
     if x!=0:
       a=self.ang*x
       l=self.l*x
       secang=Angle(0.5*a)
       lsec=2*secang.sin*l/a
-      return shiftPoint(Point(lsec*secang*rot),p0),Angle(secang*secang*1j*rot)
+      return shiftPoint(Point(lsec*secang*rot),p0),Angle(secang*secang*1j*rot),l0+x*self.l
     else:
-      return p0,Angle(rot*1j)
-  def coords(self,lstart,lend,eps,p0=Point(0,0),rot=Angle(0)):
+      return p0,Angle(rot*1j),l0
+  def coords(self,lstart,lend,eps=0.01,p0=Point(0,0),rot=Angle(0),maxdl=None,l0=None):
     n=round(0.35355339059327*sqrt(abs(self.l*self.ang/eps)))
-    yield from super().coords(lstart,lend,n,p0,rot) 
+    if maxdl!=None:
+      n=max(n,int(self.l/maxdl)+1)
+    yield from super().coords(lstart,lend,n,p0,rot,l0=l0) 
 
 def firstNotNone(*args):
   for x in args:
@@ -199,19 +203,18 @@ class SegmentList_(Segment):
       self._rots[i+1]=csang
     self._endpoint=endpoint
     self._A=A
-  def p_x(self,x,p0=Point(0,0),rot=Angle(0)):
+  def p_x(self,x,p0=Point(0,0),rot=Angle(0),l0=0):
     l=self.l*x
     i=findIndex(l,self._ls)-1
     s=self._list[i]
-    return s.p_x((l-self._ls[i])/s.l,self._p0s[i]+p0,self._rots[i]*rot)
-  def coords(self,lstart=None,lend=None,eps=0.01,p0=Point(0,0),rot=Angle(0)):
+    return s.p_x((l-self._ls[i])/s.l,self._p0s[i]+p0,self._rots[i]*rot,l0+self._ls[i])
+  def coords(self,lstart=None,lend=None,eps=None,p0=Point(0,0),rot=Angle(0),maxdl=None,l0=0):
     if lstart==None: lstart=0
     if lend==None: lend=self.l
-    l=0
-    yield self.p_l(lstart,p0,rot)
+    yield self.p_l(lstart,p0,rot,l0=l0-lstart)
     for i_ in range(len(self._list)):
       i=i_ if lend>lstart else len(self._list)-i_-1
-      yield from self._list[i].coords(lstart-self._ls[i],lend-self._ls[i],eps,self._p0s[i]+p0,self._rots[i]*rot)
+      yield from self._list[i].coords(lstart=lstart-self._ls[i],lend=lend-self._ls[i],eps=eps,p0=self._p0s[i]+p0,rot=self._rots[i]*rot,maxdl=maxdl,l0=l0-lstart+self._ls[i])
 
 
 class SegmentList(list):
@@ -923,8 +926,9 @@ if on_ipad:
 #  x=SegmentList_([ArcSegment(10*pi/2,pi/2),ArcSegment(10*pi/2,-pi/2)])
   n=11
   x=SegmentList_([ArcSegment(1,1.11*pi/2+0.1), ArcSegment(1.75,4*pi/n-0.2), ArcSegment(1,1.11*pi/2+0.1), Segment(1.3),ArcSegment(1,-1.11*pi),Segment(1.3)]*n)
+  p1,n1,l1=zip(*x.coords(0.0*x.l,1.0*x.l,eps=0.001))
   for o in [-0.05,0,0.05]:
-    plt.plot(*zip(*(p.xy for p_,n in x.coords(1*x.l,0*x.l,eps=0.001) for p in (shiftPoint(p_,n*o),)))) 
+    plt.plot(*zip(*(p.xy for p_,n,_ in x.coords(1*x.l,0*x.l,eps=0.001,l0=0) for p in (shiftPoint(p_,n*o),)))) 
   show_plot()
 #  plot_()
   pass
