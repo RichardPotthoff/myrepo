@@ -87,8 +87,8 @@ class Segment(namedtuple('Segment','l, ang')):
     return self._A
   def p_x(self,x,p0=Point(0,0),rot=Angle(0)):
     return shiftPoint(Point(x*self._endpoint*rot),p0),Angle(self._csang*1j*rot)
-  def p_l(self,l):
-    return self.p_x(l/self.l)
+  def p_l(self,l,p0=Point(0,0),rot=Angle(0)):
+    return self.p_x(l/self.l,p0,rot)
   def coords(self,lstart,lend,nsample=1,p0=Point(0,0),rot=Angle(0)):
     if (lstart<0 and lend<0) or (lstart>self.l and lend>self.l):
        return
@@ -176,15 +176,15 @@ class SegmentList_(Segment):
     return super(SegmentList_, cls).__new__(cls, len,ang)
   def __init__(self,list):
     self._list=list
-    self._ls=[None]*len(list)
-    self._angs=[None]*len(list)
-    self._endpoints=[None]*len(list)
-    self._csangs=[None]*len(list)
     A=0
     l=0
     ang=0
     endpoint=Point(0,0)
     csang=Angle(1,0)
+    self._ls=[l]*(len(list)+1)
+    self._angs=[ang]*(len(list)+1)
+    self._p0s=[endpoint]*(len(list)+1)
+    self._rots=[csang]*(len(list)+1)
     for i,s in enumerate(list):
       super().__init__(self.l,self.ang)
       l+=s.l
@@ -193,24 +193,26 @@ class SegmentList_(Segment):
       endpoint=shiftPoint(startpoint,rotate(s.endpoint,csang))
       A+=s.A+crossProduct(startpoint,endpoint)/2
       csang=addAngles(csang,s.csang)
-      self._ls[i]=l
-      self._angs[i]=ang
-      self._endpoints[i]=endpoint
-      self._csangs[i]=csang
+      self._ls[i+1]=l
+      self._angs[i+1]=ang
+      self._p0s[i+1]=endpoint
+      self._rots[i+1]=csang
     self._endpoint=endpoint
     self._A=A
+  def p_x(self,x,p0=Point(0,0),rot=Angle(0)):
+    l=self.l*x
+    i=findIndex(l,self._ls)-1
+    s=self._list[i]
+    return s.p_x((l-self._ls[i])/s.l,self._p0s[i]+p0,self._rots[i]*rot)
   def coords(self,lstart=None,lend=None,eps=0.01,p0=Point(0,0),rot=Angle(0)):
     if lstart==None: lstart=0
     if lend==None: lend=self.l
     l=0
-    yield p0,addAngles(rot,1j)
-    for s in self._list:
-      yield from s.coords(lstart-l,lend-l,eps,p0,rot)
-      p0=shiftPoint(p0,s.endpoint*rot)
-      rot=addAngles(rot,s._csang)
-      l+=s.l
+    yield self.p_l(lstart,p0,rot)
+    for i_ in range(len(self._list)):
+      i=i_ if lend>lstart else len(self._list)-i_-1
+      yield from self._list[i].coords(lstart-self._ls[i],lend-self._ls[i],eps,self._p0s[i]+p0,self._rots[i]*rot)
 
-    
 
 class SegmentList(list):
   def __init__(self):
@@ -922,7 +924,7 @@ if on_ipad:
   n=11
   x=SegmentList_([ArcSegment(1,1.11*pi/2+0.1), ArcSegment(1.75,4*pi/n-0.2), ArcSegment(1,1.11*pi/2+0.1), Segment(1.3),ArcSegment(1,-1.11*pi),Segment(1.3)]*n)
   for o in [-0.05,0,0.05]:
-    plt.plot(*zip(*(p.xy for p_,n in x.coords(eps=0.001) for p in (shiftPoint(p_,n*o),)))) 
+    plt.plot(*zip(*(p.xy for p_,n in x.coords(1*x.l,0*x.l,eps=0.001) for p in (shiftPoint(p_,n*o),)))) 
   show_plot()
 #  plot_()
   pass
