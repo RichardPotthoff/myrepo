@@ -121,7 +121,7 @@ class dial(scene.Node):
     p.add_arc(0,0,r1,ang1/2,0,False)
     p.close()   
     rcorr=(cos(ang1/2)*r1+r2)/2
-    rcorr=0.0
+#    rcorr=0.0
     for i in range(self.n//4):
       ang=(4*i+3)*(2*pi/n)
       flag=ShapeNode(p)
@@ -129,7 +129,7 @@ class dial(scene.Node):
       flag.stroke_color=(0,0,0)
       flag.alpha=0.8
       flag.position=(cos(ang)*rcorr,sin(ang)*rcorr)
-      flag.anchor_point=(0.0,0.5)
+#      flag.anchor_point=(0.0,0.5)
       flag.rotation=ang
       self.add_child(flag)
       self.all_flags.append(flag)
