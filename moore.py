@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-from __future__ import absolute_import
-from __future__ import print_function
+
+
 from pylab import *
 import matplotlib
 from six.moves import range
@@ -42,7 +42,7 @@ zu=roll(zu,-n//2+1)
 #zu=z6
 zuf=fft(zu)
 z1f=copy(zuf)
-nf=len(z1f)/8
+nf=len(z1f)//8
 z1f[nf:len(z1f)-1-nf]=0
 z1i=ifft(z1f)
 plot(z4.real,z4.imag)
@@ -89,7 +89,7 @@ z=arange(0,10.5*scale,scale)
 print(z[-1])
 xa=array([sqrt(2.0/area_length(ifft(zuf*rcos**exp(y1/scale+2)))[0] )for y1 in z])
 #plot(xa,z)
-x=array([blend(ifft(zuf*rcos**exp(y1/scale+2)),zc,(0.5*(1+cos(pi*(1-y1/z[-1]))))**6)[[k,len(zu)/4,0]] for y1 in z])
+x=array([blend(ifft(zuf*rcos**exp(y1/scale+2)),zc,(0.5*(1+cos(pi*(1-y1/z[-1]))))**6)[[k,len(zu)//4,0]] for y1 in z])
 plot(abs(x)*20.0,z)
 axes().set_aspect('equal', 'datalim')	
 show()
@@ -106,4 +106,5 @@ print("last fft:",test[:5],test[-5:])
 print("nzu=%d, nz=%d, nz6=%d"%(len(zu),len(z4),len(z6)))
 plot(abs(roll(x,-1)-x))
 show()
+
 

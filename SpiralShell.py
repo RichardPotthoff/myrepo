@@ -1,9 +1,9 @@
 import os
-import socket
+import platform
 from math import acos,pi,sin,cos,sqrt
 import cmath
 import numpy as np
-on_ipad=socket.gethostname()=="iPad"
+on_ipad="iPad" in platform.machine()  
 if on_ipad:
   from matplotlib import pyplot as plt
   from mpl_toolkits.mplot3d import Axes3D
