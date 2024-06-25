@@ -3,7 +3,7 @@ from PIL import Image
 from matplotlib import pyplot as plt
 import numpy as np
 from cmath import pi,exp,polar
-from math import atan2,copysign
+from math import atan2,copysign,sqrt
 from BlankFactory import arcChainInterpolator
 deg=pi/180
 
@@ -47,6 +47,7 @@ def intersect_circles(c1x,c1y,r1,c2x,c2y,r2):# intersection point of 2 circles
 
 class stepper:
   def __init__(self,cx,cy,cz,r,L):
+    self.C=cx+1j*cy
     self.cx=cx
     self.cy=cy
     self.cz=cz
@@ -74,6 +75,7 @@ class stepper:
     elif dl_ang>pi:dl_ang-=2*pi
     self.dl_ang=dl_ang
     rl_ang=atan2(r,dl_abs)
+    rl_ang=atan2(r,l)
     return r*(dl_ang+rl_ang) +l
   
    
@@ -137,21 +139,48 @@ circle=lambda t:fcircle(t)[0]
 frectangle=arcChainInterpolator(arcChain=[(1.5*R,0),(0,90*deg),(2*R,0),(0,90*deg),(1.5*R,0)]*2,p0=R)
 rectangle=lambda t:frectangle(t)[0]
 l=np.array([rectangle(j/(n-1)) for j in range(n+1)])
-i=0
-
+i_p=20
+plt.plot(0,0,'b+')
 stepper_x=stepper(Cx.real,Cx.imag,0,r,L=Lx)
 stepper_y=stepper(Cy.real,Cy.imag,0.0,-r,L=Ly)
-sp_x=stepper_x.stepper_pos(-100+100j)
-pex1=evolvent(-sp_x/r,t0=sp_x/r+stepper_x.dlang0-pi/2,r=r)+stepper_x.cx+1j*stepper_x.cy
-plt.plot(pex1.real,pex1.imag,'k+')
-sp_y=stepper_y.stepper_pos(-100+100j)
+p=l[i_p]
+sp_x=stepper_x.stepper_pos(p)
+sp_y=stepper_y.stepper_pos(p)
+steppers=[stepper_x,stepper_y]
+stepper_positions=[stepper.stepper_pos(p) for stepper in steppers]
+#sp_x0=stepper_x.stepper_pos(-0+0j)
+p_guess=0+0j
+plt.plot(p_guess.real,p_guess.imag,'kx')
+pe=[None]*2#cable end point
+pt=[None]*2#cable tangent point (at capstan)
+ucl=[None]*2#unwound cable length
+for j in range(10):
+  for i,(stepper,sp) in enumerate(zip(steppers,stepper_positions)):
+    drot1=(p_guess-stepper.C)*((abs(p_guess-stepper.C)**2-stepper.r**2)**0.5+1j*stepper.r)
+    pt[i] = -1j*stepper.r * drot1/abs(drot1) + stepper.C #tangent point = center of approx. circle
+    drot=drot1*(0+0j-stepper.C).conjugate()#rotation relative to stepper
+    ucl[i]=sp-stepper.r*atan2(drot.imag,drot.real)# unwound cable length = radius of approx. circle
+    pe[i]=evolvent(t=-ucl[i]/stepper.r, 
+                  t0=sp/stepper.r+stepper.dlang0-copysign(pi/2,stepper.r), 
+                  r=abs(stepper.r)
+                  ) + stepper.C
+    plt.plot(pe[i].real,pe[i].imag,'k+')
+    plt.plot(pt[i].real,pt[i].imag,'r+')
+  newx,newy=intersect_circles(pt[0].real,pt[0].imag,ucl[0],pt[1].real,pt[1].imag,ucl[1])
+  p_guess=newx+1j*newy
+  error=abs(pe[0]-pe[1])
+  print(f'{error = :6.2e}, new {p_guess = }')
+  if error<1e-6: break
+
+    
+#sp_y0=stepper_y.stepper_pos(0+0j)
 pey1=evolvent(-sp_y/-r,t0=sp_y/-r+stepper_y.dlang0+pi/2,r=r)+stepper_y.cx+1j*stepper_y.cy
-plt.plot(pey1.real,pey1.imag,'k+')
-stepper_x.plot(plt.gca(),l[i],'g-',stepper_pos=sp_x,adjust_angle=0.0*pi,plot_evolvent=True,plot_circle=True)
-stepper_y.plot(plt.gca(),l[i],'b-',stepper_pos=sp_y,adjust_angle=-0.0*pi,plot_evolvent=True,plot_circle=True)
+#plt.plot(pey1.real,pey1.imag,'k+')
+stepper_x.plot(plt.gca(),pe[0],'g-',plot_evolvent=True,plot_circle=True)
+stepper_y.plot(plt.gca(),pe[1],'b-',plot_evolvent=True,plot_circle=True)
 
 
-plt.plot(l[:i+1].real,l[:i+1].imag,'r-',lw=1,zorder=-3)
+plt.plot(l[:i_p+1].real,l[:i_p+1].imag,'r-',lw=1,zorder=-3)
 
 plt.xlim(-600,200)
 plt.ylim(-200,600)
