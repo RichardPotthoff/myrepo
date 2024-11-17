@@ -273,15 +273,16 @@ class BinaryHandler(SimpleHTTPRequestHandler):
         
 class ServerThread(threading.Thread):
 
-    def __init__(self, port=8000,site=None): 
+    def __init__(self, port=8000,config=None,site=None,): 
         self.port=port
+        self.config=config
         self.site=site
         super().__init__() 
         self._socket=None
 
     def run(self):
         socketserver.TCPServer.allow_reuse_address=True
-        with socketserver.TCPServer(("", self.port), subclass(BinaryHandler,SITE=self.site,config=None)) as httpd:
+        with socketserver.TCPServer(("", self.port), subclass(BinaryHandler,SITE=self.site,config=self.config)) as httpd:
             self._socket=httpd
             print("Serving at port", self.port,file=sys.stderr)
             try:
@@ -294,19 +295,28 @@ class ServerThread(threading.Thread):
         if self._socket!=None:
            self._socket.shutdown()
       
-if '__main__'==__name__:
-    background_thread=ServerThread(port=8000,site='textastic')
-    print(f'{background_thread.is_alive()=}')
-    background_thread.start()
-    print(f'{background_thread.is_alive()=}')
-    webbrowser.open_new_tab('http://localhost:8000')
-    try:
-      while True:
-        pass
-    except KeyboardInterrupt:
-      background_thread.stop()
-      background_thread.join()
-      
-#    del background_thread
-
+if __name__=='__main__':
+  configfile='config.yml'  
+  config=load_config(configfile)
+  site=None
+  url_path=''
+  if len(sys.argv)>1:
+    site=sys.argv[1] #'textastic'
+  if len(sys.argv)>2:
+    url_path=sys.argv[2]
+  print(f'{site=}')
+  print(f'{url_path=}')
+  background_thread=ServerThread(port=8000,site=site,config=config)
+  print(f'{background_thread.is_alive()=}')
+  background_thread.start()
+  print(f'{background_thread.is_alive()=}')
+#  webbrowser.open_new_tab('http://localhost:8000/'+url_path)
+  webbrowser.open('safari-http://localhost:8000/'+url_path)
+  try:
+    while True:
+      pass
+  except KeyboardInterrupt:
+    background_thread.stop()
+    background_thread.join()
+  
 
