@@ -70,17 +70,12 @@ def reverseByte(b):
     b_|=b&1
     b>>=1
   return b_
- 
-f=open("lircd.conf")
-a=f.read()
-b=[x.split() for x in a.split("begin raw_codes")[1].split("end raw_codes")[0].split("name")[1:]]
-d={x[0].strip():[int(y)for y in x[1:]] for x in b}
-f.close()
 
-def gen_pwl(pw=[0]+d['BTN_0']):
+
+def gen_pwl(pw):
   t=accumulate(pw)
   return [((t+y)/1e6,y^(i & 1)) for i,t in enumerate(t) for y in (0,1)]
-  
+
 def rc_filter(pwl,dt=0.000580/5,tmax=0.08,t0=0,y0=0):
   y=y0
   t=t0
@@ -108,19 +103,8 @@ def write_pwl_Files():
       
 def gen_bits(ButtonName,blank_even=True,blank_character=''):
   return ''.join([blank_character if (((i%2)==0)and blank_even)else '1' if dt>1000 else '0' for i,dt in enumerate(d[ButtonName])])
-  
-e='\n'.join([gen_bits(bn,be,' ')+' '+bn for bn in d.keys() for be in (False,True)])
-d1={bn:int(gen_bits(bn)[1:33],base=2) for bn in d.keys()}
-#print('d2={{\n{:s}}}'.format(',\n'.join(["{:>17s}:0x{:08x}".format("'"+bn+"'",code)for bn,code in d1.items()])))
-d2={
-'KEY_CHANNELDOWN':0x00ffa25d,  'KEY_CHANNEL':0x00ff629d,  'KEY_CHANNELUP':0x00ffe21d,
-   'KEY_PREVIOUS':0x00ff22dd,     'KEY_NEXT':0x00ff02fd,  'KEY_PLAYPAUSE':0x00ffc23d,
- 'KEY_VOLUMEDOWN':0x00ffe01f, 'KEY_VOLUMEUP':0x00ffa857,      'KEY_EQUAL':0x00ff906f,      
-  'KEY_NUMERIC_0':0x00ff6897,        'BTN_0':0x00ff9867,          'BTN_1':0x00ffb04f,
-  'KEY_NUMERIC_1':0x00ff30cf,'KEY_NUMERIC_2':0x00ff18e7,  'KEY_NUMERIC_3':0x00ff7a85,
-  'KEY_NUMERIC_4':0x00ff10ef,'KEY_NUMERIC_5':0x00ff38c7,  'KEY_NUMERIC_6':0x00ff5aa5,
-  'KEY_NUMERIC_7':0x00ff42bd,'KEY_NUMERIC_8':0x00ff4ab5,  'KEY_NUMERIC_9':0x00ff52ad}
-d3={k:reverseByte(c>>8&0xff) for k,c in d2.items()}
+
+
 d3={'KEY_CHANNELDOWN': 69,   'KEY_CHANNEL': 70, 'KEY_CHANNELUP': 71,
        'KEY_PREVIOUS': 68,      'KEY_NEXT': 64, 'KEY_PLAYPAUSE': 67, 
      'KEY_VOLUMEDOWN':  7,  'KEY_VOLUMEUP': 21,     'KEY_EQUAL':  9, 
@@ -128,8 +112,6 @@ d3={'KEY_CHANNELDOWN': 69,   'KEY_CHANNEL': 70, 'KEY_CHANNELUP': 71,
       'KEY_NUMERIC_1': 12, 'KEY_NUMERIC_2': 24, 'KEY_NUMERIC_3': 94, 
       'KEY_NUMERIC_4':  8, 'KEY_NUMERIC_5': 28, 'KEY_NUMERIC_6': 90, 
       'KEY_NUMERIC_7': 66, 'KEY_NUMERIC_8': 82, 'KEY_NUMERIC_9': 74}
-
-f='\n'.join(['{:4x}'.format(int(gen_bits(bn,be,'')[1:33],base=2))+' '+bn for bn in d.keys() for be in (True,)])
 
 def byteToCode(b):
   if hasattr(b,'__len__'):
@@ -170,13 +152,11 @@ def generate_pw_a(bytecode=d3['BTN_0']):
   yield(8900)
   yield(2300)
   yield(580)
-  
-assert sum([x^byteToCode(y)[0] for k in d2 for x,y in ((d2[k],d3[k]),)])==0
-  
+
 def bitAtPos(x,i):
   return(x>>i&1 if i>=0 else 0)
 
-def newState(address,code=d2['BTN_0'],dontCare=0):#Example codes for BTN_0 and BTN_1
+def newState(address,code=byteToCode(d3['BTN_0']),dontCare=0):#Example codes for BTN_0 and BTN_1
   msbBitPos=31
   state = address & 0xff #bits 2 - 9
 #  outputIsOn = state&0x80 != 0
