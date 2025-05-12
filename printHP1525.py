@@ -2,42 +2,44 @@ import reminders
 import sys
 import socket
 import os
+import unicodedata
 
 # Printer configuration
 PRINTER_IP = "10.0.0.188"  # Your printer's reserved DHCP IP address
 PRINTER_PORT = 9100  # HP JetDirect port for raw printing
 
+# HP Roman-8 mapping dictionary (Unicode char to Roman-8 byte)
+utf8_lookup=[bytes(escape, 'utf-8').decode('unicode_escape') for escape in['\\u0000', '\\u0001', '\\u0002', '\\u0003', '\\u0004', '\\u0005', '\\u0006', '\\u0007', '\\u0008', '\\u0009', '\\u000A', '\\u000B', '\\u000C', '\\u000D', '\\u000E', '\\u000F', '\\u0010', '\\u0011', '\\u0012', '\\u0013', '\\u0014', '\\u0015', '\\u0016', '\\u0017', '\\u0018', '\\u0019', '\\u001A', '\\u001B', '\\u001C', '\\u001D', '\\u001E', '\\u001F', '\\u0020', '\\u0021', '\\u0022', '\\u0023', '\\u0024', '\\u0025', '\\u0026', '\\u0027', '\\u0028', '\\u0029', '\\u002A', '\\u002B', '\\u002C', '\\u002D', '\\u002E', '\\u002F', '\\u0030', '\\u0031', '\\u0032', '\\u0033', '\\u0034', '\\u0035', '\\u0036', '\\u0037', '\\u0038', '\\u0039', '\\u003A', '\\u003B', '\\u003C', '\\u003D', '\\u003E', '\\u003F', '\\u0040', '\\u0041', '\\u0042', '\\u0043', '\\u0044', '\\u0045', '\\u0046', '\\u0047', '\\u0048', '\\u0049', '\\u004A', '\\u004B', '\\u004C', '\\u004D', '\\u004E', '\\u004F', '\\u0050', '\\u0051', '\\u0052', '\\u0053', '\\u0054', '\\u0055', '\\u0056', '\\u0057', '\\u0058', '\\u0059', '\\u005A', '\\u005B', '\\u005C', '\\u005D', '\\u005E', '\\u005F', '\\u0060', '\\u0061', '\\u0062', '\\u0063', '\\u0064', '\\u0065', '\\u0066', '\\u0067', '\\u0068', '\\u0069', '\\u006A', '\\u006B', '\\u006C', '\\u006D', '\\u006E', '\\u006F', '\\u0070', '\\u0071', '\\u0072', '\\u0073', '\\u0074', '\\u0075', '\\u0076', '\\u0077', '\\u0078', '\\u0079', '\\u007A', '\\u007B', '\\u007C', '\\u007D', '\\u007E', '\\u007F', '\\u0080', '\\u0081', '\\u0082', '\\u0083', '\\u0084', '\\u0085', '\\u0086', '\\u0087', '\\u0088', '\\u0089', '\\u008A', '\\u008B', '\\u008C', '\\u008D', '\\u008E', '\\u008F', '\\u0090', '\\u0091', '\\u0092', '\\u0093', '\\u0094', '\\u0095', '\\u0096', '\\u0097', '\\u0098', '\\u0099', '\\u009A', '\\u009B', '\\u009C', '\\u009D', '\\u009E', '\\u009F', '\\u00A0', '\\u00C0', '\\u00C2', '\\u00C8', '\\u00CA', '\\u00CB', '\\u00CE', '\\u00CF', '\\u00B4', '\\u2035', '\\u2227', '\\u00A8', '\\u223C', '\\u00D9', '\\u00DB', '\\u20A4', '\\u00AF', '\\u00DD', '\\u00FD', '\\u00B0', '\\u00C7', '\\u00E7', '\\u00D1', '\\u00F1', '\\u00A1', '\\u00BF', '\\u00A4', '\\u00A3', '\\u00A5', '\\u00A7', '\\u0192', '\\u00A2', '\\u00E2', '\\u00EA', '\\u00F4', '\\u00FB', '\\u00E1', '\\u00E9', '\\u00F3', '\\u00FA', '\\u00E0', '\\u00E8', '\\u00F2', '\\u00F9', '\\u00E4', '\\u00EB', '\\u00F6', '\\u00FC', '\\u00C5', '\\u00EE', '\\u00D8', '\\u00C6', '\\u00E5', '\\u00ED', '\\u00F8', '\\u00E6', '\\u00C4', '\\u00EC', '\\u00D6', '\\u00DC', '\\u00C9', '\\u00EF', '\\u00DF', '\\u00D4', '\\u00C1', '\\u00C3', '\\u00E3', '\\u00D0', '\\u00F0', '\\u00CD', '\\u00CC', '\\u00D3', '\\u00D2', '\\u00D5', '\\u00F5', '\\u0160', '\\u0161', '\\u00DA', '\\u0178', '\\u00FF', '\\u00DE', '\\u00FE', '\\u00B7', '\\u00B5', '\\u00B6', '\\u00BE', '\\u2014', '\\u00BC', '\\u00BD', '\\u00AA', '\\u00BA', '\\u00AB', '\\u25A0', '\\u00BB', '\\u00B1','']]
+roman8_map = {key:i for i,key in enumerate(utf8_lookup)}
+
 def send_to_printer(data):
-    """Send raw text data to the HP CP1525nw via JetDirect."""
+    """Send raw byte data to the HP CP1525nw via JetDirect."""
     try:
-        # Create a socket connection
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(5)  # 5-second timeout for connection
+            s.settimeout(5)
             s.connect((PRINTER_IP, PRINTER_PORT))
             
-            # PCL commands for grayscale, minimal margins, and 1.5 line spacing
             pcl_header = (
-                "\x1b%-12345X@PJL\n"  # Universal Exit Language (UEL)
-                "@PJL JOB NAME=\"Shopping List\"\n"
-                "@PJL SET ECONOMODE=ON\n"  # Enable grayscale/economy mode
-                "@PJL SET RESOLUTION=600\n"  # 600 DPI resolution
-                "@PJL ENTER LANGUAGE=PCL\n"
-                "\x1b&l0O"  # Portrait orientation
-                "\x1b&l0E"  # Top margin (0 lines)
-                "\x1b&a0L"  # Left margin (0 columns)
-                "\x1b*p0x150Y"  # Cursor to (0, 150/300 inch = 5mm down) to avoid clipping
-                "\x1b(8U"  # Symbol set (Roman-8, suitable for text)
-                "\x1b(s0P"  # Fixed pitch font
-                "\x1b(s10V"  # Font size (10 points)
-                "\x1b&l4D"  # Line spacing (4 lines per inch, ~1.5 spacing for 10-point font)
+                b"\x1b%-12345X@PJL\n"
+                b"@PJL JOB NAME=\"Shopping List\"\n"
+                b"@PJL SET ECONOMODE=ON\n"
+                b"@PJL SET RESOLUTION=600\n"
+                b"@PJL ENTER LANGUAGE=PCL\n"
+                b"\x1b&l0O"
+                b"\x1b&l0E"
+                b"\x1b&a0L"
+                b"\x1b*p0x150Y"
+                b"\x1b(8U"  # HP Roman-8 symbol set
+                b"\x1b(s0P"
+                b"\x1b(s10V"
+                b"\x1b&l4D"
             )
             pcl_footer = (
-                "\x1b&l0H"  # Form feed to eject page
-                "\x1b%-12345X@PJL EOJ\n"  # End of job
+                b"\x1b&l0H"
+                b"\x1b%-12345X@PJL EOJ\n"
             )
             
-            # Send data
-            s.sendall((pcl_header + data + pcl_footer).encode())
+            s.sendall(pcl_header + data + pcl_footer)
             
         print("Print job sent successfully!")
         return True
@@ -45,11 +47,25 @@ def send_to_printer(data):
         print(f"Failed to connect to printer: {e}")
         return False
 
+def unicode_to_roman8(text):
+    """Convert Unicode string to HP Roman-8 byte string."""
+    # Normalize to NFC to handle decomposed characters (e.g., "u\u0308" -> "ü")
+    text = unicodedata.normalize('NFC', text)
+    
+    # Convert each character to Roman-8 bytes
+    result = bytearray()
+    for char in text:
+        if ord(char) < 0x80:  # ASCII range
+            result.append(ord(char))
+        elif char in roman8_map:  # Extended Roman-8 range
+            result.append(roman8_map[char])
+        else:  # Fallback for unmapped characters
+            result.append(ord('?'))
+    return bytes(result)
+
 def main():
-    # Get list name from arguments or default to 'Shopping'
     ListName = sys.argv[1] if len(sys.argv) > 1 else 'Shopping'
     
-    # Get reminders
     calendars = {calendar.title: calendar for calendar in reminders.get_all_calendars()}
     if ListName not in calendars:
         print(f'Calendar "{ListName}" not found.')
@@ -61,10 +77,12 @@ def main():
     data = "\r\n".join(r.title for r in todo)
     if not data:
         data = "No items in list"
-    data += "\r\n"  # Ensure final line break
+    data += "\r\n"
     
-    # Send to printer
-    success = send_to_printer(data)
+    # Convert to Roman-8 bytes
+    data_roman8 = unicode_to_roman8(data)
+    
+    success = send_to_printer(data_roman8)
     
     if success:
         print(f'{ListName} List printed!')
@@ -74,3 +92,4 @@ def main():
 if __name__ == '__main__':
     print(f'argv: {sys.argv}')
     main()
+
