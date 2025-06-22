@@ -28,10 +28,10 @@ class HanoiScene(scene.Scene):
             (0, 0, 1),      # Blue
             (1, 0.5, 0),    # Orange
             (0.5, 1, 0.25),    # lime
-            (0, 1, 1),      # Cyan
             (1, 0, 1),      # Magenta
-            (1, 1, 1),      # White
+            (0, 1, 1),      # Cyan
             (0, 0, 0),      # Black
+            (1, 1, 1),      # White
         ]
 
     def setup(self):
