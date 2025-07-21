@@ -24,14 +24,14 @@ FIELD_POSITIONS = {
     "payee": {"pos": (22, 30), "length": 90},
     "amount_numeric": {"pos": (121, 30), "length": 23},
     "amount_written": {"pos": (10, 38), "length": 105},
-    "memo": {"pos": (16, 57), "length": 50}  # Assuming y=157mm was typo; confirm
+    "memo": {"pos": (16, 57), "length": 50} 
 }
 
 # Test mode placeholders
 TEST_PLACEHOLDERS = {
     "date": "YYYY/MM/DD",
     "payee": "X" * 36,  # ~90mm at ~2.5mm/char
-    "amount_numeric": "9,999.99",
+    "amount_numeric": "9999.99",
     "amount_written": "X" * 42,  # ~105mm
     "memo": "X" * 20  # ~50mm
 }
@@ -85,9 +85,9 @@ def send_to_printer(data):
         print(f"Failed to connect to printer: {e}")
         return False
 
-def main():
+def main(args):
     # Check if arguments are provided (len=1 means only script name)
-    if len(sys.argv) == 1:
+    if len(args) == 1:
         # Test mode: Print "+" at corners (centered on corners) and placeholders
         corners = [
             (0, 0),  # Top-left
@@ -106,16 +106,18 @@ def main():
             x, y = info["pos"]
             px = mm_to_units(x + OFFSET_X)
             py = mm_to_units(y + OFFSET_Y)
-            placeholder = fill_field(TEST_PLACEHOLDERS[field], field, info["length"])
-            data += f"\x1b*p{px}x{py}Y{placeholder}\r\n"
+            text=TEST_PLACEHOLDERS[field]
+            if field=="amount_numeric":
+               text = fill_field(f'{float(text):0,.2f}', info["length"])
+            data += f"\x1b*p{px}x{py}Y{text}\r\n"
     else:
         # Real mode: Get check data from arguments, no corner markers
         check_data = {
-            "date": sys.argv[1] if len(sys.argv) > 1 else "TEST_DATE",
-            "payee": sys.argv[2] if len(sys.argv) > 2 else "TEST_PAYEE",
-            "amount_numeric": sys.argv[3] if len(sys.argv) > 3 else "TEST_AMOUNT",
-            "amount_written": sys.argv[4] if len(sys.argv) > 4 else "TEST_AMOUNT_WRITTEN",
-            "memo": sys.argv[5] if len(sys.argv) > 5 else "TEST_MEMO"
+            "date": args[1] if len(args) > 1 else "TEST_DATE",
+            "payee": args[2] if len(args) > 2 else "TEST_PAYEE",
+            "amount_numeric": args[3] if len(args) > 3 else "TEST_AMOUNT",
+            "amount_written": args[4] if len(args) > 4 else "TEST_AMOUNT_WRITTEN",
+            "memo": args[5] if len(args) > 5 else "TEST_MEMO"
         }
         
         # Format check data with PCL cursor positioning
@@ -133,10 +135,14 @@ def main():
     success = send_to_printer(data)
     
     if success:
-        print("Check printed!" if len(sys.argv) > 1 else "Test pattern printed!")
+        print("Check printed!" if len(args) > 1 else "Test pattern printed!")
     else:
         print("Failed to print check.")
 
 if __name__ == '__main__':
-    print(f'argv: {sys.argv}')
-    main()
+    if "args" in globals():  # used as PythonistaLab shortcut?  
+      args.insert(0,'printCheck.py')
+    else:
+      args=sys.argv
+    print(f'{args = }')
+    main(args)
