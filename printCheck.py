@@ -106,10 +106,15 @@ def main(args):
             x, y = info["pos"]
             px = mm_to_units(x + OFFSET_X)
             py = mm_to_units(y + OFFSET_Y)
-            text=TEST_PLACEHOLDERS[field]
-            if field=="amount_numeric":
-               text = fill_field(f'{float(text):0,.2f}', info["length"])
-            data += f"\x1b*p{px}x{py}Y{text}\r\n"
+            text = TEST_PLACEHOLDERS[field]
+            if field == "amount_written":
+                data += f"\x1b(s8V"  # Set font size to 8 points
+                data += f"\x1b*p{px}x{py}Y{text}\r\n"
+                data += f"\x1b(s10V"  # Restore font size to 10 points
+            else:
+                if field == "amount_numeric":
+                    text = fill_field(f'{float(text):0,.2f}', info["length"])
+                data += f"\x1b*p{px}x{py}Y{text}\r\n"
     else:
         # Real mode: Get check data from arguments, no corner markers
         check_data = {
@@ -126,10 +131,15 @@ def main(args):
             x, y = info["pos"]
             px = mm_to_units(x + OFFSET_X)
             py = mm_to_units(y + OFFSET_Y)
-            text=check_data[field]
-            if field=="amount_numeric":
-               text = fill_field(f'{float(text):0,.2f}', info["length"])
-            data += f"\x1b*p{px}x{py}Y{text}\r\n"
+            text = check_data[field]
+            if field == "amount_written":
+                data += f"\x1b(s8V"  # Set font size to 8 points
+                data += f"\x1b*p{px}x{py}Y{text}\r\n"
+                data += f"\x1b(s10V"  # Restore font size to 10 points
+            else:
+                if field == "amount_numeric":
+                    text = fill_field(f'{float(text):0,.2f}', info["length"])
+                data += f"\x1b*p{px}x{py}Y{text}\r\n"
     
     # Send to printer
     success = send_to_printer(data)
@@ -138,7 +148,7 @@ def main(args):
         print("Check printed!" if len(args) > 1 else "Test pattern printed!")
     else:
         print("Failed to print check.")
-
+        
 if __name__ == '__main__':
     if "args" in globals():  # used as PythonistaLab shortcut?  
       args.insert(0,'printCheck.py')
