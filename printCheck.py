@@ -32,20 +32,13 @@ TEST_PLACEHOLDERS = {
     "date": "MM/DD/YYYY",
     "payee": "X" * 36,  # ~90mm at ~2.5mm/char
     "amount_numeric": "9999.99",
-    "amount_written": "X" * 42,  # ~105mm
+    "amount_written": "X" * 50,  # ~105mm
     "memo": "X" * 20  # ~50mm
 }
 
 def mm_to_units(mm):
     """Convert mm to 1/300 inch units."""
     return int(mm * MM_TO_UNITS)
-
-def fill_field(text, field_length_mm):
-    """Fill field to approximate length with asterisks, except for date."""
-    chars_per_mm = 0.4  # ~2.5mm/char at 10-point fixed-pitch (~10 chars/inch)
-    max_chars = int(field_length_mm * chars_per_mm)
-    #text = text[:max_chars]  # Truncate if too long
-    return text + "*" * max(0,(max_chars - len(text)))  # Pad with asterisks
 
 def send_to_printer(data):
     """Send raw text data to the HP CP1525nw via JetDirect."""
@@ -67,11 +60,11 @@ def send_to_printer(data):
                 "\x1b&a0L"  # Left margin (0 columns)
                 "\x1b*p0x150Y"  # Cursor to 5mm down to avoid clipping
                 "\x1b(8U"  # Symbol set (Roman-8, suitable for text)
-                "\x1b(s0P"  # Fixed pitch font
-                "\x1b(s10H"  # Font size (10 cpi)
+                "\x1b(s1P"  # proportional font
+                "\x1b(s12V"  # Font size (14 point)
                 "\x1b(s0S"  # Style = normal
                 "\x1b(s0B"  # weight = normal
-                "\x1b(s4099T" # typeface = Courier
+                "\x1b(s24580T" # typeface = Helvetica
                 "\x1b&l4D"  # Line spacing (4 lines per inch, ~1.5 spacing)
             )
             pcl_footer = (
@@ -111,12 +104,12 @@ def main(args):
             py = mm_to_units(y + OFFSET_Y)
             text = TEST_PLACEHOLDERS[field]
             if field == "amount_written":
-                data += f"\x1b(s12H"  # 12cpi font
+                data += f"\x1b(s4S"  # narrow
                 data += f"\x1b*p{px}x{py}Y{text}\r\n"
-                data += f"\x1b(s10H"  # 10-cpi font
+                data += f"\x1b(s0S"  # normal
             else:
                 if field == "amount_numeric":
-                    text = fill_field(f'{float(text):0,.2f}', info["length"])
+                    text = f'{float(text):0,.2f}'
                 data += f"\x1b*p{px}x{py}Y{text}\r\n"
     else:
         # Real mode: Get check data from arguments, no corner markers
@@ -136,12 +129,12 @@ def main(args):
             py = mm_to_units(y + OFFSET_Y)
             text = check_data[field]
             if field == "amount_written":
-                data += f"\x1b(s12H"  # 12 cpi font
+                data += f"\x1b(s4S"  # narrow
                 data += f"\x1b*p{px}x{py}Y{text}\r\n"
-                data += f"\x1b(s10H"  # 10 cpi font
+                data += f"\x1b(s0S"  # normal
             else:
                 if field == "amount_numeric":
-                    text = fill_field(f'{float(text):0,.2f}', info["length"])
+                    text = f'{float(text):0,.2f}'
                 data += f"\x1b*p{px}x{py}Y{text}\r\n"
     
     # Send to printer
