@@ -29,7 +29,7 @@ FIELD_POSITIONS = {
 
 # Test mode placeholders
 TEST_PLACEHOLDERS = {
-    "date": "YYYY/MM/DD",
+    "date": "MM/DD/YYYY",
     "payee": "X" * 36,  # ~90mm at ~2.5mm/char
     "amount_numeric": "9999.99",
     "amount_written": "X" * 42,  # ~105mm
@@ -68,7 +68,10 @@ def send_to_printer(data):
                 "\x1b*p0x150Y"  # Cursor to 5mm down to avoid clipping
                 "\x1b(8U"  # Symbol set (Roman-8, suitable for text)
                 "\x1b(s0P"  # Fixed pitch font
-                "\x1b(s10V"  # Font size (10 points)
+                "\x1b(s10H"  # Font size (10 cpi)
+                "\x1b(s0S"  # Style = normal
+                "\x1b(s0B"  # weight = normal
+                "\x1b(s4099T" # typeface = Courier
                 "\x1b&l4D"  # Line spacing (4 lines per inch, ~1.5 spacing)
             )
             pcl_footer = (
@@ -108,9 +111,9 @@ def main(args):
             py = mm_to_units(y + OFFSET_Y)
             text = TEST_PLACEHOLDERS[field]
             if field == "amount_written":
-                data += f"\x1b(s8V"  # Set font size to 8 points
+                data += f"\x1b(s12H"  # 12cpi font
                 data += f"\x1b*p{px}x{py}Y{text}\r\n"
-                data += f"\x1b(s10V"  # Restore font size to 10 points
+                data += f"\x1b(s10H"  # 10-cpi font
             else:
                 if field == "amount_numeric":
                     text = fill_field(f'{float(text):0,.2f}', info["length"])
@@ -133,21 +136,23 @@ def main(args):
             py = mm_to_units(y + OFFSET_Y)
             text = check_data[field]
             if field == "amount_written":
-                data += f"\x1b(s8V"  # Set font size to 8 points
+                data += f"\x1b(s12H"  # 12 cpi font
                 data += f"\x1b*p{px}x{py}Y{text}\r\n"
-                data += f"\x1b(s10V"  # Restore font size to 10 points
+                data += f"\x1b(s10H"  # 10 cpi font
             else:
                 if field == "amount_numeric":
                     text = fill_field(f'{float(text):0,.2f}', info["length"])
                 data += f"\x1b*p{px}x{py}Y{text}\r\n"
     
     # Send to printer
+    success=False
     success = send_to_printer(data)
     
     if success:
         print("Check printed!" if len(args) > 1 else "Test pattern printed!")
     else:
         print("Failed to print check.")
+        print(data.replace("\x1b",'<esc>' ))
         
 if __name__ == '__main__':
     if "args" in globals():  # used as PythonistaLab shortcut?  
