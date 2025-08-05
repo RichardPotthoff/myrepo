@@ -22,20 +22,23 @@ except ImportError:
 
 def clone_selected(src, dst, selected, logging=False):
     src, dst = Path(src), Path(dst)
-    if logging: print(f'\nCopying {len(selected)} files/directories:') 
+    if logging: print(f'\nCopying {len(selected)} items:') 
     for i,item in enumerate(selected):
       if logging: print(f'{i+1:5d}: {item:30}',end='')
       try:
         src_path = src / item
         dst_path = dst / item
+        if os.path.exists(dst_path):
+          if logging: print("can't overwrite existing item",file=sys.stderr)
+          continue
         if src_path.is_dir():
-            shutil.copytree(src_path, dst_path,copy_function=shutil.copy, dirs_exist_ok=True)
+            shutil.copytree(src_path, dst_path,copy_function=shutil.copy)
         elif src_path.is_file():
-            dst_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(src_path, dst_path)
         else:
-            raise FileNotFoundError(f"source file or directory '{item}' not found!")    
-        if logging:print('O.K.')
+          if logging: print("source item invalid",file=sys.stderr)
+          continue 
+        if logging: print('O.K.')
       except Exception as e:
         if logging:
           print()
