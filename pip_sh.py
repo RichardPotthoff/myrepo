@@ -30,15 +30,14 @@ def clone_selected(src, dst, selected, logging=False):
         dst_path = dst / item
         if os.path.exists(dst_path):
           if logging: print("can't overwrite existing item",file=sys.stderr)
-          continue
-        if src_path.is_dir():
-            shutil.copytree(src_path, dst_path,copy_function=shutil.copy)
+        elif src_path.is_dir():
+          shutil.copytree(src_path, dst_path,copy_function=shutil.copy)
+          if logging: print("O.K.")
         elif src_path.is_file():
-            shutil.copy(src_path, dst_path)
+          shutil.copy(src_path, dst_path)
+          if logging: print("O.K.")
         else:
           if logging: print("source item invalid",file=sys.stderr)
-          continue 
-        if logging: print('O.K.')
       except Exception as e:
         if logging:
           print()
@@ -54,11 +53,11 @@ def sh_cmd(cmdln):
   cmd,*args=sys.argv
   try:
     if   'pip'  ==cmd:
-                      from pip._internal.cli.main import main as _main
-                      try:
-                        return(_main())
-                      except BaseException: 
-                        return -1
+                       from pip._internal.cli.main import main as _main
+                       try:
+                         return(_main())
+                       except BaseException: 
+                         return -1
     elif 'clone'==cmd: clone_selected(src=os.getcwd(),dst=cloned_packages_path,selected=args,logging=True);return 0
     elif 'ls'   ==cmd: print(' \n '.join(sorted(os.listdir(*args))));  return 0
     elif 'cd'   ==cmd: os.chdir(*args); return 0
