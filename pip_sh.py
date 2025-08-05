@@ -57,7 +57,7 @@ def sh_cmd(cmdln):
                       except BaseException: 
                         return -1
     elif 'clone'==cmd: clone_selected(src=os.getcwd(),dst=cloned_packages_path,selected=args,logging=True);return 0
-    elif 'ls'   ==cmd: print('\n'.join(sorted(os.listdir(*args))));  return 0
+    elif 'ls'   ==cmd: print(' \n '.join(sorted(os.listdir(*args))));  return 0
     elif 'cd'   ==cmd: os.chdir(*args); return 0
     elif 'quit' ==cmd: sys.exit()
     elif 'exit' ==cmd: sys.exit()
@@ -81,6 +81,7 @@ def sh():
   '       with a file "CLONE_TARGET.py" (the directories have to be on the "sys.path"\n'
   '       search path so Python can find them).\n'
   '       Tip: copy/paste the filenames from the "ls" output to the input line.\n'
+  '            (Line breaks in the pasted text are not a problem.)\n'
   '   ls: List an alphabetically sorted list of files/directories of the "cwd".\n' 
   '   cd: Change the "cwd".\n'
   ' exit: exit "pip_sh".\n'
