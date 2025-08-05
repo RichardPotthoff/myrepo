@@ -16,15 +16,15 @@ def clone_selected(src, dst, selected, logging=False):
     src, dst = Path(src), Path(dst)
     if logging: print(f'\nCopying {len(selected)} files/directories:') 
     for i,item in enumerate(selected):
-      if logging: print(f'{i:5d}: {item:15}',end='')
+      if logging: print(f'{i+1:5d}: {item:30}',end='')
       try:
         src_path = src / item
         dst_path = dst / item
         if src_path.is_dir():
-            shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
+            shutil.copytree(src_path, dst_path,copy_function=shutil.copy, dirs_exist_ok=True)
         elif src_path.is_file():
             dst_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src_path, dst_path)
+            shutil.copy(src_path, dst_path)
         else:
             raise FileNotFoundError(f"source file '{name}' not found!")    
         if logging:print('O.K.')
@@ -87,3 +87,4 @@ def sh():
       
 if __name__=='__main__':
   sh()
+
