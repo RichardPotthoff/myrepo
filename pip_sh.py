@@ -2,12 +2,19 @@ import sys
 import os
 import shutil
 from pathlib import Path
-import PIP_TARGET
+try:
+  import PIP_TARGET
+except ImportError:
+  print('Module "PIP_TARGET.py" missing in "site-packages(user)"!\n\n'
+        'Add an empty file named "TIP_TARGET.py" to "site-packages(user)". \n'
+        'This file acts as a tag that marks the target directory for the\n'
+        'commands "pip" and "clone".',file=sys.stderr)
+  sys.exit(1)
 os.environ['PIP_TARGET']=os.path.dirname(PIP_TARGET.__file__)
 
 def clone_selected(src, dst, selected, logging=False):
     src, dst = Path(src), Path(dst)
-    if logging: print(f'Copying {len(selected)} files/directories:') 
+    if logging: print(f'\nCopying {len(selected)} files/directories:') 
     for i,item in enumerate(selected):
       if logging: print(f'{i:5d}: {item:15}',end='')
       try:
@@ -53,10 +60,25 @@ def sh_cmd(cmdln):
     sys.argv=saved_argv
 
 def sh():
+  print(
+  'Command List:\n'
+  '  pip: This is the standard python pip command.\n'
+  '       If "pip" is not yet installed, copy "pip_sh.py" to a remote share that\n'
+  '       contains an installed "pip" module (e.g. on a shared remote drive) to\n'
+  '       bootstrap the installation of "pip". Running pip from a remote shared \n'
+  '       drive may be slow, so it should be avoided once "pip" is installed locally.\n'
+  'clone: This command allows to copy a list of files/directories from the\n'
+  '       "cwd" (current working directory) to "site-packes(user)" (PIP_TARGET).\n'
+  '       Tip: copy/paste the filenames from the "ls" output to the input line.\n'
+  '   ls: List an alphabetically sorted list of files/directories of the "cwd".\n' 
+  '   cd: Change the "cwd".\n'
+  ' exit: exit "pip_sh".\n'
+  )
+  
   while True:
     try:
       cwd=os.path.basename(os.getcwd())
-      cmdln=input(f'\n{cwd}: ')
+      cmdln=input(f'\n{cwd=}: ')
       sh_cmd(cmdln)
     except Exception as e:
       print(e)
