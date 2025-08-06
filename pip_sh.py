@@ -1,4 +1,4 @@
-import sys, os, shutil, pathlib, shlex
+import sys, os, pathlib, shutil, shlex, runpy
 
 try:
   import PIP_TARGET
@@ -47,20 +47,18 @@ def sh_cmd(cmdln):
   sys.argv=shlex.split(cmdln)
   cmd,*args=sys.argv
   try:
-    if   'pip'  ==cmd:
-                       from pip._internal.cli.main import main as _main
-                       try:
-                         return(_main())
-                       except BaseException: 
-                         return -1
-    elif 'clone'==cmd: clone_selected(src=os.getcwd(),dst=cloned_packages_path,selected=args,logging=True);return 0
+    if   'clone'==cmd: clone_selected(src=os.getcwd(),dst=cloned_packages_path,selected=args,logging=True);return 0
     elif 'ls'   ==cmd: print('\n',' \n '.join(map(shlex.quote,sorted(os.listdir(*args)))),' ');  return 0
     elif 'cd'   ==cmd: os.chdir(*args); return 0
     elif 'quit' ==cmd: sys.exit()
     elif 'exit' ==cmd: sys.exit()
-    else:
-      print(f"sh_cmd: {cmd}: command not found",file=sys.stderr)
-      return -1 
+    else:              
+                       try:
+                         runpy.run_module(cmd,run_name='__main__')
+                       except Exception as e:
+                         raise e
+                       except BaseException:
+                         return 0
   finally:
     sys.argv=saved_argv
 
