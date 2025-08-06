@@ -95,6 +95,7 @@ def sh():
 if __name__=='__main__':
   if len(sys.argv)>1: sh_name=sys.argv[1]
   print(help_text())
+  saved_cwd=os.getcwd() 
   sh()
+  os.chdir(saved_cwd) 
   print(f"\nKeyboard interrupt received, exiting '{sh_name}'. ")
-
