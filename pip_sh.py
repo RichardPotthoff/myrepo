@@ -1,7 +1,5 @@
-import sys
-import os
-import shutil
-from pathlib import Path
+import sys, os, shutil, pathlib, shlex
+
 try:
   import PIP_TARGET
 except ImportError:
@@ -10,18 +8,17 @@ except ImportError:
         'This file acts as a tag that marks the target directory for the\n'
         'commands "pip" and "clone".',file=sys.stderr)
   sys.exit(1)
-  
 pip_packages_path=os.path.dirname(PIP_TARGET.__file__)
 os.environ['PIP_TARGET']=pip_packages_path
+
 cloned_packages_path=pip_packages_path
 try:
   import CLONE_TARGET
   cloned_packages_path=os.path.dirname(CLONE_TARGET.__file__)
-except ImportError:
-  pass
+except ImportError: pass
 
 def clone_selected(src, dst, selected, logging=False):
-    src, dst = Path(src), Path(dst)
+    src, dst = pathlib.Path(src), pathlib.Path(dst)
     if logging: print(f'\nCopying {len(selected)} items:') 
     for i,item in enumerate(selected):
       if logging: print(f'{i+1:5d}: {item:30}',end='')
@@ -46,8 +43,6 @@ def clone_selected(src, dst, selected, logging=False):
 def sh_cmd(cmdln):
   if not cmdln:
     return
-  import sys
-  import shlex
   saved_argv=sys.argv
   sys.argv=shlex.split(cmdln)
   cmd,*args=sys.argv
@@ -59,7 +54,7 @@ def sh_cmd(cmdln):
                        except BaseException: 
                          return -1
     elif 'clone'==cmd: clone_selected(src=os.getcwd(),dst=cloned_packages_path,selected=args,logging=True);return 0
-    elif 'ls'   ==cmd: print(' \n '.join(sorted(os.listdir(*args))));  return 0
+    elif 'ls'   ==cmd: print('\n',' \n '.join(map(shlex.quote,sorted(os.listdir(*args)))),' ');  return 0
     elif 'cd'   ==cmd: os.chdir(*args); return 0
     elif 'quit' ==cmd: sys.exit()
     elif 'exit' ==cmd: sys.exit()
@@ -82,8 +77,10 @@ def sh():
   '       working directory) to "site-packages(user)" (PIP_TARGET), or to a directory\n'
   '       with a file "CLONE_TARGET.py" (the directories have to be on the "sys.path"\n'
   '       search path so Python can find them).\n'
-  '       Tip: copy/paste the filenames from the "ls" output to the input line.\n'
-  '            (Line breaks in the pasted text are not a problem.)\n'
+  '       Tip 1: Copy/paste the filenames from the "ls" output to the input line.\n'
+  '              (Line breaks in the pasted text are not a problem.)\n'
+  '       Tip 2: Copy "pip_sh.py" to a remote shared drive, and run it from there.\n'
+  '              (The initial "cwd" is the parent directory of the script being run.)\n'
   '   ls: List an alphabetically sorted list of files/directories of the "cwd".\n' 
   '   cd: Change the "cwd".\n'
   ' exit: exit "pip_sh".\n'
