@@ -82,7 +82,6 @@ def sh_cmd(cmdln):
     sys.argv=saved_argv
     
 def sh():
-  print(help_text())
   while True:
     try:
       cwd=os.path.basename(os.getcwd())
@@ -95,6 +94,7 @@ def sh():
       
 if __name__=='__main__':
   if len(sys.argv)>1: sh_name=sys.argv[1]
+  print(help_text())
   sh()
   print(f"\nKeyboard interrupt received, exiting '{sh_name}'. ")
 
