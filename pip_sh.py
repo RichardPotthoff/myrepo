@@ -92,7 +92,7 @@ def sh():
       cmdln=input(f'\npip_sh:{cwd} $ ')
       sh_cmd(cmdln)
     except Exception as e:
-      print(e)
+      print(e,file=sys.stderr)
     except BaseException:
       break 
       
