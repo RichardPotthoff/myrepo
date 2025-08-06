@@ -89,7 +89,7 @@ def sh():
   while True:
     try:
       cwd=os.path.basename(os.getcwd())
-      cmdln=input(f'\n{cwd=}: ')
+      cmdln=input(f'\npip_sh:{cwd} $ ')
       sh_cmd(cmdln)
     except Exception as e:
       print(e)
