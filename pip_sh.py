@@ -68,18 +68,18 @@ def sh_cmd(cmdln):
   sys.argv=shlex.split(cmdln)
   cmd,*args=sys.argv
   try:
-    if   'clone'==cmd: clone_selected(src=os.getcwd(),dst=cloned_packages_path,selected=args,logging=True);return 0
-    elif 'ls'   ==cmd: print('\n',' \n '.join(map(shlex.quote,sorted(os.listdir(*args)))),'\n');  return 0
-    elif 'cd'   ==cmd: os.chdir(*args); return 0
+    if   'clone'==cmd: clone_selected(src=os.getcwd(),dst=cloned_packages_path,selected=args,logging=True)
+    elif 'ls'   ==cmd: print('\n',' \n '.join(map(shlex.quote,sorted(os.listdir(*args)))),'\n')
+    elif 'cd'   ==cmd: os.chdir(*args)
     elif 'help' ==cmd: print(help_text(),end='\n\n')
     elif 'quit' ==cmd: sys.exit()
     elif 'exit' ==cmd: sys.exit()
-    else:              
-      try: runpy.run_module(cmd,run_name='__main__')
-      except Exception as e: raise e
-      except BaseException: return 0
+    else:              runpy.run_module(cmd,run_name='__main__')
+  except Exception as e: raise e
+  except BaseException: pass
   finally:
     sys.argv=saved_argv
+  return 0
     
 def sh():
   while True:
