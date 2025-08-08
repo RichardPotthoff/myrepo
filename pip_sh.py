@@ -67,18 +67,19 @@ def sh_cmd(cmdln):
   saved_argv=sys.argv
   sys.argv=shlex.split(cmdln)
   cmd,*args=sys.argv
+  quit=False
   try:
     if   'clone'==cmd: clone_selected(src=os.getcwd(),dst=cloned_packages_path,selected=args,logging=True)
     elif 'ls'   ==cmd: print('\n',' \n '.join(map(shlex.quote,sorted(os.listdir(*args)))),'\n')
     elif 'cd'   ==cmd: os.chdir(*args)
     elif 'help' ==cmd: print(help_text(),end='\n\n')
-    elif 'quit' ==cmd: sys.exit()
-    elif 'exit' ==cmd: sys.exit()
+    elif 'quit' ==cmd: quit=True
+    elif 'exit' ==cmd: quit=True
     else:              runpy.run_module(cmd,run_name='__main__')
   except Exception as e: raise e
   except BaseException: pass
-  finally:
-    sys.argv=saved_argv
+  finally: sys.argv=saved_argv
+  if quit: raise KeyboardInterrupt
   return 0
     
 def sh():
@@ -87,10 +88,8 @@ def sh():
       cwd=os.path.basename(os.getcwd())
       cmdln=input(f'{sh_name}:{cwd} $ ')
       sh_cmd(cmdln)
-    except Exception as e:
-      print(e,file=sys.stderr)
-    except BaseException:
-      break 
+    except Exception as e: print(e,file=sys.stderr)
+    except BaseException:  break 
       
 if __name__=='__main__':
   if len(sys.argv)>1: sh_name=sys.argv[1]
