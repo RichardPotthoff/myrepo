@@ -95,6 +95,10 @@ if __name__=='__main__':
   if len(sys.argv)>1: sh_name=sys.argv[1]
   print(help_text())
   saved_cwd=os.getcwd() 
+  try:
+    os.chdir(os.path.dirname(__file__))
+  except Exception as e:
+    print(e,file=sys.stderr)
   sh()
   os.chdir(saved_cwd) 
   print(f"\nKeyboard interrupt received, exiting '{sh_name}'. ")
