@@ -98,8 +98,8 @@ def unicode_to_roman8(text):
             result.append(ord('?'))
     return bytes(result)
 
-def main():
-    ListName = sys.argv[1] if len(sys.argv) > 1 else 'Shopping'
+def main(args):
+    ListName = args[1] if len(args) > 1 else 'Shopping'
     
     calendars = {calendar.title: calendar for calendar in reminders.get_all_calendars()}
     if ListName not in calendars:
@@ -124,6 +124,10 @@ def main():
         print(f'Failed to print {ListName} List.')
 
 if __name__ == '__main__':
+    if "args" in globals():  # used as PythonistaLab shortcut?  
+      args.insert(0,'printHP1525.py')
+    else:
+      args=sys.argv
     print(f'argv: {sys.argv}')
-    main()
+    main(args)
  
