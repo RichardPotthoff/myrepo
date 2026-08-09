@@ -23,16 +23,19 @@ if '_debug_main' in locals():
     for filepath,breaklines in d.breaks.items():
       print(filepath, breaklines)
     print()
-
+else:
+    import ppdb,pdb
+    pdb.set_trace()
 import sys,os,pathlib,inspect
 import breakpoint_test_module
+
 print('List of command line arguments:')
 for i, arg in enumerate(sys.argv):
     print(f'arg{i:2}={arg}')
 print()
 print('Test start:')
 print(f'Line {inspect.currentframe().f_lineno} in "{pathlib.Path(__file__).relative_to(os.getcwd())}"')
-breakpoint_test_module.f1(12)
+print(breakpoint_test_module.f1(12))
 print(f'Line {inspect.currentframe().f_lineno} in "{pathlib.Path(__file__).relative_to(os.getcwd())}"')
 print('Test complete!')
 
