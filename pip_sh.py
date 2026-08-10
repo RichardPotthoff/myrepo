@@ -1,4 +1,8 @@
-import sys, os, pathlib, shutil, shlex, runpy
+import sys, os, pathlib, shutil, shlex, runpy, types
+try:
+  import platform_darwin, ppdb #patches required only for some commands
+except:
+  pass 
 sh_name=os.path.splitext(os.path.basename(__file__))[0] if '__file__' in locals() else 'pip_sh'
 def help_text(): return ('\n'
   'List of Commands:\n\n'
@@ -64,6 +68,7 @@ def clone_selected(src, dst, selected, logging=False):
 def sh_cmd(cmdln):
   if not cmdln:
     return
+  shell_main = sys.modules.get("__main__") 
   saved_argv=sys.argv
   sys.argv=shlex.split(cmdln)
   cmd,*args=sys.argv
@@ -75,10 +80,18 @@ def sh_cmd(cmdln):
     elif 'help' ==cmd: print(help_text(),end='\n\n')
     elif 'quit' ==cmd: quit=True
     elif 'exit' ==cmd: quit=True
-    else:              runpy.run_module(cmd,run_name='__main__')
+    else:
+       guest_main=types.ModuleType('__main__')       
+       guest_main.__dict__['__name__'] = '__main__'
+       guest_main.__dict__['__builtins__'] = __builtins__
+       sys.modules["__main__"]=guest_main
+       runpy.run_module(cmd,run_name='__main__',alter_sys=True)
   except Exception as e: raise e
   except BaseException: pass
-  finally: sys.argv=saved_argv
+  finally: 
+    if shell_main:
+      sys.modules["__main__"]=shell_main 
+    sys.argv=saved_argv
   if quit: raise KeyboardInterrupt
   return 0
     
