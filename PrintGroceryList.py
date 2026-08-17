@@ -82,7 +82,7 @@ def send_to_printer(data,font='Helvetica',proportional=True,pointsize=12,linespa
         print("Print job sent successfully!")
         return True
     except (socket.timeout, socket.error) as e:
-        print(f"Failed to connect to printer: {e}")
+        print(f'Failed to connect to printer: {e}\n Check that "iPad/Settings/Apps/Pythonista/Allow Pythonista to Access/Local Network" is set to "On", \n (and that the Printer is switched on).')
         return False
 
 def unicode_to_roman8(text):
@@ -144,6 +144,8 @@ def parse_grocery_item_title(item):
 class GroceryItem():
   def __init__(self,reminder_title):
     d=parse_grocery_item_title(reminder_title)
+    if not d: 
+      print(f'No match in "{reminder_title}"')
     self.title=d['title']
     self.count=d['count']
     try:
@@ -170,6 +172,7 @@ if __name__ == '__main__':
     "Apples",
     "Sugar",
     "Kakao",
+    "Choclate Syrup",
     "Eggs",
     "Milk",
     "Yogurt (strawb.)",
@@ -181,17 +184,23 @@ if __name__ == '__main__':
     "Coffee(Fr. Van.)",
     "Hot chocolate",
     "Tea (black)",
-    "Oats",
-    "Corn flakes (frost.)",
     "Cheddar",
+    "Oats (quick)",
+    "Oats (old fashioned)",
+    "Corn flakes (frost.)",
+    "Onion powder",
+    "Salt",
     "Hazelnut spread",
     "Peanut butter",
     "Bread",
-    "Kitchen Towels",
-    "Toilet paper",
     "Ramen",
     "Boullion",
     "Mashed potatoes",
+    "Kitchen Towels (ultra)",
+    "Kitchen Towels (everyday)",
+    "Toilet paper",
+    "Soap (single)",
+    "Soap (refill)",
     "Peas(frozen)",
     ]
     
@@ -219,28 +228,39 @@ if __name__ == '__main__':
     top_margin=3.0
     x_left_margin=0.0
     x_count_tab=35.0
-    x_price_tab=48.0
+    x_price_tab=46.0
     items.append(GroceryItem(f'Total: 0${total:0.2f}'))
+    preview=''
     for i,r in enumerate(items):
       py=top_margin*dots_per_mm+(i+1)*pointsize*dots_per_point*linespacing
       px=x_left_margin*dots_per_mm
       s_count=f'{r.count:d}@' if r.count else ''
       s_price=f'{r.price:.2f}'
       px_count=x_count_tab*dots_per_mm-len(s_count)*dots_per_digit
-      px_price=x_price_tab*dots_per_mm-len(s_price)*dots_per_digit 
+      px_price=x_price_tab*dots_per_mm-(len(s_price)-0.5)*dots_per_digit #the -0.5 accounts for the decimal point
+      preview+=f"{r.title:20s}{s_count:3s}{r.price:5.2f}\n"
       data += f"\x1b*p{px:.0f}x{py:.0f}Y{r.title}\x1b*p{px_count:.0f}X{s_count}\x1b*p{px_price:.0f}X{s_price}\r\n"
       
     if not data:
         data = "No items in list"
     data += "\r\n"
     
-    # Convert to Roman-8 bytes
-    data_roman8 = unicode_to_roman8(data)
-    success = send_to_printer(data_roman8,pointsize=pointsize,style=style,testing=('--testing' in args))
-    
-    if success:
-        print(f'{ListName} List printed!')
+    if '--preview' in args:
+      import clipboard
+      print(preview)
+      clipboard.set(preview)
     else:
-        print(f'Failed to print {ListName} List.')
-    if '--quit' in args: os._exit(0)
+      # Convert to Roman-8 bytes
+      data_roman8 = unicode_to_roman8(data)
+      success = send_to_printer(data_roman8,pointsize=pointsize,style=style,testing=('--testing' in args))
+      
+      if success:
+          print(f'{ListName} List printed!')
+      else:
+          print(f'Failed to print {ListName} List.')
+          
+    if '--quit' in args: 
+      import time
+      time.sleep(1)
+      os._exit(0)
  
