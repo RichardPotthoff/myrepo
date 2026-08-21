@@ -1,4 +1,5 @@
-import sys, os, pathlib, shutil, shlex, runpy, types
+import sys, os, pathlib, shutil, shlex, runpy, types, pprint
+pprint,pp=[pprint.pprint]*2
 try:
   import platform_darwin, ppdb #patches required only for some commands
 except:
@@ -9,22 +10,36 @@ def help_text(): return ('\n'
   '  pip: This is the standard Python pip command.\n'
   '       If "pip" is not yet installed, copy "pip_sh.py" to a remote share that\n'
   '       contains an installed "pip" module (e.g. on a shared remote drive) to\n'
-  '       bootstrap the installation of "pip" (using the command: "pip install pip").\n'
+  '       bootstrap the installation of "pip", using the command: "pip install pip".\n'
   '       Running "pip" from a remote shared drive may be slow (~30s to install pip),\n'
   '       so it should be avoided once "pip" is installed locally.\n'
+  '       Tip 1: It may be easier to just create a new empty script in Pythonista on the, \n'
+  '              remote drive and hit "run" in Pythonista. Here is an example path of a file\n'
+  '              that has been created in this way:\n'
+  '              "/private/var/mobile/Library/LiveFiles/com.apple.filesystems.smbclientd/\n'
+  '               oRJK7QPythonista/lib/python3.10/site-packages/remotePC_sh.py"\n'      
+  '\n'
   'clone: This command copies a list of files/directories from the "cwd" (current\n'
   '       working directory) to "site-packages(user)" (PIP_TARGET), or to a directory\n'
   '       with a file "CLONE_TARGET.py" (the directories have to be on the "sys.path"\n'
   '       search path so Python can find them).\n'
-  '       Tip 1: Copy/paste the filenames from the "ls" output to the input line.\n'
+  '       Tip 2: Copy/paste the filenames from the "ls" output to the input line.\n'
   '              (Line breaks in the pasted text are not a problem.)\n'
-  '       Tip 2: Copy "pip_sh.py" to a remote shared drive, and run it from there.\n'
+  '       Tip 3: Copy "pip_sh.py" to a remote shared drive, and run it from there.\n'
   '              (The initial "cwd" is the parent directory of the script being run.)\n'
+  '\n'
   '   ls: List an alphabetically sorted list of files/directories of the "cwd".\n' 
+  '\n'
   '   cd: Change the "cwd".\n'
+  '\n'
+  ' exec: execute a Python statement. E.g. "exec pp(sys.path)" will print the current Python path.\n'
+  '\n'
  f" exit: Exit '{sh_name}'.\n"
+ '\n'
   ' help: This help text.\n'
+  '\n'
   ) 
+  
 try:
   import PIP_TARGET
 except ImportError:
@@ -80,6 +95,7 @@ def sh_cmd(cmdln):
     elif 'help' ==cmd: print(help_text(),end='\n\n')
     elif 'quit' ==cmd: quit=True
     elif 'exit' ==cmd: quit=True
+    elif 'exec' ==cmd: exec(cmdln.split(' ',1)[1])
     else:
        guest_main=types.ModuleType('__main__')       
        guest_main.__dict__['__name__'] = '__main__'
@@ -115,3 +131,4 @@ if __name__=='__main__':
   sh()
   os.chdir(saved_cwd) 
   print(f"\nKeyboard interrupt received, exiting '{sh_name}'. ")
+  
