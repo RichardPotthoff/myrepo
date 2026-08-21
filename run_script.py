@@ -4,7 +4,7 @@ saved_path=sys.path
 try:
   script_path=sys.argv[1]
   #print(f'run_script(original): {sys.argv=}')
-  sys.argv=sys.argv[1:-1]#there seems to be an extra argument appended at the end when called from pythonista tools
+  sys.argv=sys.argv[1:]#there seems to be an extra argument appended at the end when called from pythonista tools
   sys.path=[os.path.dirname(script_path)]+saved_path
   #print(f'run_script(shifted): {sys.argv=}')
   print("'run_script.py': Executing " '"' f"runpy.run_path('{script_path }',run_name='__main__')" '".')
