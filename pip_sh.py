@@ -32,7 +32,7 @@ def help_text(): return ('\n'
   '\n'
   '   cd: Change the "cwd".\n'
   '\n'
-  ' exec: execute a Python statement. E.g. "exec pp(sys.path)" will print the current Python path.\n'
+  '    !: execute a Python statement. E.g. "!pp(sys.path)" will print the current Python path.\n'
   '\n'
  f" exit: Exit '{sh_name}'.\n"
  '\n'
@@ -89,13 +89,13 @@ def sh_cmd(cmdln):
   cmd,*args=sys.argv
   quit=False
   try:
-    if   'clone'==cmd: clone_selected(src=os.getcwd(),dst=cloned_packages_path,selected=args,logging=True)
+    if  cmd.startswith('!'): exec((cmdln[1:]).lstrip())
+    elif 'clone'==cmd: clone_selected(src=os.getcwd(),dst=cloned_packages_path,selected=args,logging=True)
     elif 'ls'   ==cmd: print('\n',' \n '.join(map(shlex.quote,sorted(os.listdir(*args)))),'\n')
     elif 'cd'   ==cmd: os.chdir(*args)
     elif 'help' ==cmd: print(help_text(),end='\n\n')
     elif 'quit' ==cmd: quit=True
     elif 'exit' ==cmd: quit=True
-    elif 'exec' ==cmd: exec(cmdln.split(' ',1)[1])
     else:
        guest_main=types.ModuleType('__main__')       
        guest_main.__dict__['__name__'] = '__main__'
