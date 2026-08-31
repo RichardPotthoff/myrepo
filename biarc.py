@@ -1,5 +1,68 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import cmath
+rad=(-1)**(1/cmath.pi)
+def compute_biarc_p(P: complex, w0: float) -> float:
+    """
+    Computes the biarc family parameter p for a given point P (x + iy) 
+    and lens half-width angle w0 according to Equation (33).
+    """
+    # 1. Phase angle of the lens as a complex unit vector
+    E2 = rad**(2* w0)
+    
+    # 2. Conformal Möbius mapping to the W-plane
+    W = (P - 1) / (P + 1)
+    
+    # 3. Branch execution based on the sign of the imaginary part
+    if P.imag >= 0:
+        p_complex = (1 - E2) / (E2 * W - W.conjugate())
+    else:
+        p_complex = (E2 * (1 / W) - (1 / W.conjugate())) / (1 - E2)
+        
+    # The result is strictly a real number; extract the real part
+    return p_complex.real
+    
+import cmath
+
+def calculate_biarc_geometry_complex(p: float, Ta: complex, Tb: complex):
+    """
+    Calculates the biarc geometry using purely complex vector math.
+    
+    Inputs:
+        p: family parameter (float)
+        Ta: complex unit vector of the start tangent (e^(i*alpha0))
+        Tb: complex unit vector of the end tangent (e^(i*beta0))
+    """
+    # --- 1. Compute the Complex Junction Point J ---
+    # In complex terms, Kurnosenko's lens bisector phasor is sqrt(Ta * Tb.conjugate())
+    # F scales perfectly into a clean inner product variant:
+    F = p**2 + p * (Ta * Tb.conjugate() + 1).real + 1.0
+    
+    if abs(F) < 1e-12:
+        raise ValueError("Parameter p matches a discontinuous biarc boundary.")
+    
+    # Elegant complex projection mapping the poles A(-1) and B(1) to J
+    J = ((p**2 - 1.0) + 1j * p * (Ta - Tb)) / F
+
+    # --- 2. Compute the Tangent Phasor at the Junction (Tj) ---
+    # Using complex square roots avoids half-angle tan arithmetic entirely
+    num = p * cmath.sqrt(Ta) + cmath.sqrt(Tb)
+    
+    # Squaring the normalized numerator naturally recovers the full exit tangent
+    Tj = -(num / abs(num))**2
+    
+    # --- 3. Compute Arc Heading Changes (theta1, theta2) ---
+    # Relative rotations are just the phase angles of the phasor quotients
+    theta1 = cmath.phase(Tj / Ta)
+    theta2 = cmath.phase(Tb / Tj)
+    
+    return {
+        "junction": J,
+        "tangent_at_junction": Tj,       # Returned as a complex unit vector
+        "arc1_heading_change": theta1,    # In radians, naturally in (-pi, pi]
+        "arc2_heading_change": theta2     # In radians, naturally in (-pi, pi]
+    }
+
 
 def compute_biarc_original_hybrid(p1, t1, p2, t2):
     p1 = np.array(p1, dtype=float)
@@ -94,7 +157,7 @@ def find_locus_circle(p1, pm, p2):
 # --- Run & Plot ---
 p1_in, t1_in = [0.0, 0.0], [1.0, 1.0]
 p2_in, t2_in = [4.0, 1.0], [1.0, -1.0]
-p1_in, t1_in = [0.0, 0.0], [-1.0, -1.0]
+p1_in, t1_in = [0.0, 0.0], [-1, -1.0]
 p2_in, t2_in = [4.0, 1.0], [1.0, -1.0]
 
 p1, pm, p2, c1, r1, c2, r2, t1, t2, tm = compute_biarc_original_hybrid(p1_in, t1_in, p2_in, t2_in)
@@ -110,9 +173,6 @@ y_locus = c_locus[1] + r_locus * np.sin(angles)
 
 # Plotting
 plt.figure(figsize=(10, 6))
-plt.plot(x_locus, y_locus, 'g--', alpha=0.4, label='Junction Locus Circle')
-plt.plot(x1, y1, 'b-', linewidth=2.5, label='Arc 1 (P1 to Pm)')
-plt.plot(x2, y2, 'r-', linewidth=2.5, label='Arc 2 (Pm to P2)')
 
 plt.scatter([p1[0], pm[0], p2[0]], [p1[1], pm[1], p2[1]], color='black', zorder=5)
 plt.text(p1[0], p1[1]-0.2, ' P1', fontdict={'weight': 'bold'})
@@ -127,5 +187,14 @@ plt.quiver(*pm, *tm, color='purple', scale=6, zorder=4, label='Tm')
 plt.axis('equal')
 plt.grid(True, linestyle=':', alpha=0.6)
 plt.legend(loc='upper left')
+xl=plt.xlim()
+yl=plt.ylim()
+
+plt.plot(x_locus, y_locus, 'g--', alpha=0.4, label='Junction Locus Circle')
+plt.plot(x1, y1, 'b-', linewidth=2.5, label='Arc 1 (P1 to Pm)')
+plt.plot(x2, y2, 'r-', linewidth=2.5, label='Arc 2 (Pm to P2)')
+plt.xlim(xl)
+plt.ylim(yl)
+plt.gca().set_aspect('equal')
 plt.title("Accurate G1 Biarc connection with Junction Locus Circle")
 plt.show()
